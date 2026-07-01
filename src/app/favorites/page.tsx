@@ -7,7 +7,6 @@ import { Shop, Event } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-import BackButton from '@/components/ui/BackButton'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
 
@@ -79,10 +78,7 @@ export default function FavoritesPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
-        <div className="flex items-center gap-3 mb-2">
-          <BackButton />
-          <div className="font-bold text-sm">お気に入り</div>
-        </div>
+        <div className="font-bold text-sm mb-2">お気に入り</div>
         <div className="flex gap-2">
           {TABS.map((t) => (
             <button

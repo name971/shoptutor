@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { FORMAT_LABELS, FORMAT_COLORS, ReviewWithLikes } from '@/types'
-import BackButton from '@/components/ui/BackButton'
 
 const NAME_CHANGE_INTERVAL_DAYS = 30
 const PAGE_SIZE = 3
@@ -227,7 +226,6 @@ export default function MyPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-        <BackButton />
         <div className="font-bold text-sm flex-1">マイページ</div>
         <button onClick={handleSignOut} className="text-xs font-medium text-gray-500">
           ログアウト

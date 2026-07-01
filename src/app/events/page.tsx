@@ -7,7 +7,6 @@ import { haversineDistanceKm } from '@/lib/geo'
 import { FORMAT_LABELS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-import BackButton from '@/components/ui/BackButton'
 
 const FORMATS = [
   { key: 'commander', label: 'コマンダー' },
@@ -150,10 +149,7 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10 flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <BackButton />
-          <div className="font-bold text-sm">イベント</div>
-        </div>
+        <div className="font-bold text-sm">イベント</div>
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           {RADIUS_OPTIONS.map((r) => (
