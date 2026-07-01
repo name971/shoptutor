@@ -72,7 +72,7 @@ export default async function ShopDetailPage({ params }: Props) {
   const RATING_LABELS = [
     { key: 'stock_rating',     label: '品揃え・在庫',         avg: shop.avg_stock },
     { key: 'price_rating',     label: '価格設定・買取査定',   avg: shop.avg_price },
-    { key: 'playspace_rating', label: 'デュエルスペースの環境', avg: shop.avg_playspace },
+    { key: 'playspace_rating', label: '対戦スペースの環境', avg: shop.avg_playspace },
     { key: 'staff_rating',     label: '接客・店員の対応',     avg: shop.avg_staff },
     { key: 'access_rating',    label: 'アクセス・利便性',     avg: shop.avg_access },
   ]

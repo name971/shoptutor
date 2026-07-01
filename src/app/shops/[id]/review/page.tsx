@@ -9,7 +9,7 @@ import BackButton from '@/components/ui/BackButton'
 const RATING_FIELDS = [
   { key: 'stock_rating', label: '品揃え・在庫' },
   { key: 'price_rating', label: '価格設定・買取査定' },
-  { key: 'playspace_rating', label: 'デュエルスペースの環境' },
+  { key: 'playspace_rating', label: '対戦スペースの環境' },
   { key: 'staff_rating', label: '接客・店員の対応' },
   { key: 'access_rating', label: 'アクセス・利便性' },
 ] as const
