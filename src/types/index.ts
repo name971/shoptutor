@@ -25,6 +25,7 @@ export type Shop = {
   avg_staff: number | null
   avg_access: number | null
   avg_total: number | null
+  view_count: number
 }
 
 export type Event = {

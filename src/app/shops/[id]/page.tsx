@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase'
-import { Event, ReviewWithLikes } from '@/types'
+import { ReviewWithLikes } from '@/types'
 import ShopBadges from '@/components/ui/ShopBadges'
-import FormatBadge from '@/components/ui/FormatBadge'
 import ReviewList from '@/components/shop/ReviewList'
 import FavoriteButton from '@/components/shop/FavoriteButton'
+import PhotoGallery from '@/components/shop/PhotoGallery'
+import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
+import BackButton from '@/components/ui/BackButton'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -22,6 +24,8 @@ export default async function ShopDetailPage({ params }: Props) {
     .single()
 
   if (!shop) notFound()
+
+  supabase.rpc('increment_shop_view', { shop_id_input: id }).then(() => {})
 
   const { data: events } = await supabase
     .from('events')
@@ -42,6 +46,19 @@ export default async function ShopDetailPage({ params }: Props) {
   const reviews: ReviewWithLikes[] = (reviewsData ?? []).map((r: any) => ({
     ...r,
     like_count: r.review_likes?.[0]?.count ?? 0,
+  }))
+
+  const { data: photosData } = await supabase
+    .from('shop_photos')
+    .select('id, url, user_id, photo_likes(count)')
+    .eq('shop_id', id)
+    .eq('is_deleted', false)
+
+  const photos = (photosData ?? []).map((p: any) => ({
+    id: p.id,
+    url: p.url,
+    user_id: p.user_id,
+    like_count: p.photo_likes?.[0]?.count ?? 0,
   }))
 
   const formatCounts = [
@@ -65,9 +82,8 @@ export default async function ShopDetailPage({ params }: Props) {
     <div className="min-h-screen bg-gray-50">
       {/* ヘッダー */}
       <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-        <Link href="/" className="text-gray-500 hover:text-gray-700">←</Link>
+        <BackButton />
         <div className="font-bold text-sm flex-1 truncate">{shop.name}</div>
-        <FavoriteButton shopId={shop.id} />
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
@@ -76,65 +92,33 @@ export default async function ShopDetailPage({ params }: Props) {
         <ShopBadges shop={shop} />
 
         {/* 基本情報 */}
-        <div className="bg-white rounded-xl border p-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <span>📍</span>
-            <span>{shop.address || shop.prefecture}</span>
+        <div className="bg-white rounded-xl border p-3 flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <span>📍</span>
+              <span>{shop.address || shop.prefecture}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span>🔗</span>
+              <a
+                href={`https://mtg-jp.com/events/shop/${shop.official_id}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                公式ページ（mtg-jp.com）
+              </a>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span>🔗</span>
-            <a
-              href={`https://mtg-jp.com/events/shop/${shop.official_id}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
-            >
-              公式ページ（mtg-jp.com）
-            </a>
-          </div>
+          <FavoriteButton shopId={shop.id} />
         </div>
 
         {/* 公式イベント情報 */}
-        <div className="bg-white rounded-xl border p-3">
-          <div className="font-medium text-sm mb-3 flex items-center gap-1">
-            📅 公式イベント情報
-          </div>
-          {shop.weekly_event_count === 0 ? (
-            <div className="text-xs text-gray-400">今週のイベント情報はありません</div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-gray-50 rounded-lg p-2">
-                  <div className="text-xs text-gray-500">週イベント</div>
-                  <div className="text-xl font-medium">
-                    {shop.weekly_event_count}<span className="text-xs text-gray-400">回</span>
-                  </div>
-                </div>
-                {formatCounts.map((f) => (
-                  <div key={f.key} className="bg-gray-50 rounded-lg p-2">
-                    <div className="text-xs text-gray-500">{f.label}</div>
-                    <div className="text-xl font-medium">
-                      {f.count}<span className="text-xs text-gray-400">回/週</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {events && events.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  {events.map((event: Event) => (
-                    <div key={event.id} className="flex items-center justify-between text-xs py-1 border-t">
-                      <span className="text-gray-700 truncate flex-1">{event.title}</span>
-                      <div className="flex items-center gap-2 ml-2">
-                        <FormatBadge format={event.format} size="sm" />
-                        <span className="text-gray-400 whitespace-nowrap">{event.held_at}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <OfficialEventsSection
+          weeklyEventCount={shop.weekly_event_count}
+          formatCounts={formatCounts}
+          events={events ?? []}
+        />
 
         {/* レビュー概要 */}
         <div className="bg-white rounded-xl border p-3">
@@ -176,6 +160,9 @@ export default async function ShopDetailPage({ params }: Props) {
             ✏️ この店舗をレビューする
           </Link>
         </div>
+
+        {/* 店舗写真 */}
+        <PhotoGallery shopId={shop.id} initialPhotos={photos} />
 
         {/* レビュー一覧 */}
         <ReviewList reviews={reviews} />

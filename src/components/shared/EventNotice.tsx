@@ -25,7 +25,7 @@ export default function EventNotice() {
     <div className="bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg p-3 mb-3 flex items-start gap-2">
       <span>ℹ️</span>
       <div className="flex-1 leading-relaxed">
-        イベント情報は公式サイトから自動取得したものです。実際の開催状況は各店舗の公式ページでご確認ください。
+        実際の開催状況は各店舗の公式ページでご確認ください。
       </div>
       <button onClick={dismiss} className="text-blue-400 hover:text-blue-600 flex-shrink-0">✕</button>
     </div>

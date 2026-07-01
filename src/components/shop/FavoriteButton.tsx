@@ -69,12 +69,13 @@ export default function FavoriteButton({ shopId }: Props) {
     <button
       onClick={toggle}
       disabled={pending}
-      className={`flex items-center gap-1 text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0 ${
+      className={`flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors disabled:opacity-50 flex-shrink-0 ${
         favorited ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'
       }`}
       aria-label="お気に入り"
     >
-      <span className="text-lg leading-none">{favorited ? '★' : '☆'}</span>
+      <span className="text-2xl leading-none">{favorited ? '★' : '☆'}</span>
+      <span>{favorited ? 'お気に入り済み' : 'お気に入り'}</span>
     </button>
   )
 }
