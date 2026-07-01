@@ -1,23 +1,22 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { Shop } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
-import type { MapBounds } from '@/components/map/ShopMap'
 
-const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-      <p className="text-gray-400 text-sm">地図を読み込み中...</p>
-    </div>
-  ),
-})
+const REGIONS = [
+  { name: '北海道・東北', prefectures: ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県'] },
+  { name: '関東', prefectures: ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県'] },
+  { name: '甲信越・北陸', prefectures: ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県'] },
+  { name: '東海', prefectures: ['岐阜県', '静岡県', '愛知県', '三重県'] },
+  { name: '関西', prefectures: ['滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県'] },
+  { name: '中国', prefectures: ['鳥取県', '島根県', '岡山県', '広島県', '山口県'] },
+  { name: '四国', prefectures: ['徳島県', '香川県', '愛媛県', '高知県'] },
+  { name: '九州・沖縄', prefectures: ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'] },
+]
 
 const FORMATS = [
   { key: 'commander', label: 'コマンダー' },
@@ -34,51 +33,21 @@ const SORT_OPTIONS = [
   { key: 'event',   label: 'イベント数順' },
 ]
 
-const FILTERS_STORAGE_KEY = 'shoptutor_map_filters'
+const PAGE_SIZE = 20
 
-function loadSavedFilters(): {
-  selectedFormat: string | null
-  selectedSort: string
-  wpnOnly: boolean
-  meisterOnly: boolean
-  searchQuery: string
-} | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.sessionStorage.getItem(FILTERS_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-export default function MapPage() {
+export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
   const [filtered, setFiltered] = useState<Shop[]>([])
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(
-    () => loadSavedFilters()?.selectedFormat ?? null
-  )
-  const [selectedSort, setSelectedSort] = useState(
-    () => loadSavedFilters()?.selectedSort ?? 'recommended'
-  )
-  const [wpnOnly, setWpnOnly] = useState(() => loadSavedFilters()?.wpnOnly ?? false)
-  const [meisterOnly, setMeisterOnly] = useState(() => loadSavedFilters()?.meisterOnly ?? false)
-  const [searchQuery, setSearchQuery] = useState(() => loadSavedFilters()?.searchQuery ?? '')
+  const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
+  const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
+  const [selectedSort, setSelectedSort] = useState('recommended')
+  const [wpnOnly, setWpnOnly] = useState(false)
+  const [meisterOnly, setMeisterOnly] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
-  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
-
-  useEffect(() => {
-    try {
-      window.sessionStorage.setItem(
-        FILTERS_STORAGE_KEY,
-        JSON.stringify({ selectedFormat, selectedSort, wpnOnly, meisterOnly, searchQuery })
-      )
-    } catch {
-      // 保存失敗は無視
-    }
-  }, [selectedFormat, selectedSort, wpnOnly, meisterOnly, searchQuery])
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   useEffect(() => {
     const fetchShops = async () => {
@@ -106,8 +75,31 @@ export default function MapPage() {
     [shops, favoriteCounts]
   )
 
+  const availablePrefectureSet = useMemo(
+    () => new Set(shops.map((s) => s.prefecture)),
+    [shops]
+  )
+
+  const visibleRegions = useMemo(
+    () =>
+      REGIONS.map((r) => ({
+        name: r.name,
+        prefectures: r.prefectures.filter((p) => availablePrefectureSet.has(p)),
+      })).filter((r) => r.prefectures.length > 0),
+    [availablePrefectureSet]
+  )
+
   useEffect(() => {
     let result = [...shops]
+
+    if (prefectureFilter) {
+      result = result.filter((s) => s.prefecture === prefectureFilter)
+    } else if (expandedRegion) {
+      const region = REGIONS.find((r) => r.name === expandedRegion)
+      if (region) {
+        result = result.filter((s) => region.prefectures.includes(s.prefecture))
+      }
+    }
 
     const query = searchQuery.trim().toLowerCase()
     if (query) {
@@ -136,30 +128,22 @@ export default function MapPage() {
       if (selectedSort === 'recommended') {
         return (recommendScores.get(b.id) ?? 0) - (recommendScores.get(a.id) ?? 0)
       }
-      if (selectedSort === 'event')   return b.weekly_event_count - a.weekly_event_count
-      if (selectedSort === 'rating')  return (b.avg_total ?? 0) - (a.avg_total ?? 0)
+      if (selectedSort === 'event')  return b.weekly_event_count - a.weekly_event_count
+      if (selectedSort === 'rating') return (b.avg_total ?? 0) - (a.avg_total ?? 0)
       return 0
     })
 
     setFiltered(result)
-  }, [shops, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
+    setVisibleCount(PAGE_SIZE)
+  }, [shops, prefectureFilter, expandedRegion, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
 
-  const visibleInList = mapBounds
-    ? filtered.filter(
-        (s) =>
-          s.lat !== null &&
-          s.lng !== null &&
-          s.lat <= mapBounds.north &&
-          s.lat >= mapBounds.south &&
-          s.lng <= mapBounds.east &&
-          s.lng >= mapBounds.west
-      )
-    : filtered
+  const visibleShops = filtered.slice(0, visibleCount)
+  const formatLabel = FORMATS.find((f) => f.key === selectedFormat)?.label
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50 pb-16">
       {/* ヘッダー */}
-      <div className="bg-white border-b px-4 py-2 flex items-center gap-3 z-10">
+      <div className="bg-white border-b px-4 py-2 flex items-center gap-3 sticky top-0 z-10">
         <div className="font-bold text-base text-gray-800">ShopTutor</div>
         <input
           value={searchQuery}
@@ -167,37 +151,106 @@ export default function MapPage() {
           placeholder="店舗名・エリアで検索"
           className="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
         />
-        <Link href="/events" className="text-xs font-medium text-gray-500 whitespace-nowrap">
-          イベント
-        </Link>
-        <Link href="/favorites" className="text-xs font-medium text-gray-500 whitespace-nowrap">
-          ★ お気に入り
-        </Link>
-        <Link href="/mypage" className="text-xs font-medium text-gray-500 whitespace-nowrap">
-          マイページ
-        </Link>
         <AuthStatus />
       </div>
 
-      {/* フィルター */}
-      <div className="bg-white border-b px-4 py-2 flex gap-2 overflow-x-auto z-10">
-        {FORMATS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setSelectedFormat(selectedFormat === f.key ? null : f.key)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              selectedFormat === f.key
-                ? 'bg-blue-50 border-blue-400 text-blue-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-        <div className="flex items-center gap-2 pl-2 ml-1 border-l border-gray-200 flex-shrink-0">
+      <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
+        {/* エリアから探す */}
+        <div className="bg-white rounded-xl border p-3">
+          <div className="font-medium text-sm mb-2">📍 エリアから探す</div>
+          <div className="flex flex-wrap gap-1.5">
+            {visibleRegions.map((region) => (
+              <button
+                key={region.name}
+                onClick={() => setExpandedRegion(expandedRegion === region.name ? null : region.name)}
+                className={`px-3 py-1.5 rounded-full text-xs border whitespace-nowrap transition-colors ${
+                  expandedRegion === region.name
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : region.prefectures.includes(prefectureFilter ?? '')
+                      ? 'bg-blue-50 border-blue-400 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-600'
+                }`}
+              >
+                {region.name}
+              </button>
+            ))}
+          </div>
+
+          {expandedRegion && (
+            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
+              {visibleRegions
+                .find((r) => r.name === expandedRegion)
+                ?.prefectures.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPrefectureFilter(prefectureFilter === p ? null : p)}
+                    className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
+                      prefectureFilter === p
+                        ? 'bg-blue-50 border-blue-400 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* フォーマットから探す */}
+        <div className="bg-white rounded-xl border p-3">
+          <div className="font-medium text-sm mb-2">🎴 フォーマットから探す</div>
+          <div className="flex flex-wrap gap-1.5">
+            {FORMATS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setSelectedFormat(selectedFormat === f.key ? null : f.key)}
+                className={`px-3 py-1.5 rounded-full text-xs border whitespace-nowrap transition-colors ${
+                  selectedFormat === f.key
+                    ? 'bg-blue-50 border-blue-400 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-600'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 現在の絞り込み＋二次フィルター */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {(prefectureFilter || expandedRegion || formatLabel) && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {prefectureFilter ? (
+                <button
+                  onClick={() => setPrefectureFilter(null)}
+                  className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
+                >
+                  {prefectureFilter} ✕
+                </button>
+              ) : (
+                expandedRegion && (
+                  <button
+                    onClick={() => setExpandedRegion(null)}
+                    className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
+                  >
+                    {expandedRegion} ✕
+                  </button>
+                )
+              )}
+              {formatLabel && (
+                <button
+                  onClick={() => setSelectedFormat(null)}
+                  className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
+                >
+                  {formatLabel} ✕
+                </button>
+              )}
+            </div>
+          )}
           <button
             onClick={() => setWpnOnly(!wpnOnly)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
               wpnOnly
                 ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
                 : 'bg-white border-gray-200 text-gray-600'
@@ -207,7 +260,7 @@ export default function MapPage() {
           </button>
           <button
             onClick={() => setMeisterOnly(!meisterOnly)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
               meisterOnly
                 ? 'bg-orange-50 border-orange-400 text-orange-700'
                 : 'bg-white border-gray-200 text-gray-600'
@@ -215,48 +268,44 @@ export default function MapPage() {
           >
             マイスター
           </button>
+          <select
+            value={selectedSort}
+            onChange={(e) => setSelectedSort(e.target.value)}
+            className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
         </div>
-        <select
-          value={selectedSort}
-          onChange={(e) => setSelectedSort(e.target.value)}
-          className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600"
-        >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.key} value={o.key}>{o.label}</option>
-          ))}
-        </select>
-      </div>
 
-      {/* マップ＋リスト */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* マップ */}
-        <div className="flex-1 relative">
-          {!loading && (
-            <ShopMap
-              shops={filtered}
-              visibleCount={visibleInList.length}
-              onShopSelect={setSelectedShop}
-              onBoundsChange={setMapBounds}
-            />
+        {/* 店舗一覧 */}
+        <div>
+          <div className="text-xs text-gray-500 mb-2">
+            {prefectureFilter ?? expandedRegion ?? '全国'}のおすすめ店舗　{filtered.length}件
+          </div>
+
+          {loading ? (
+            <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center text-gray-400 text-sm py-8">店舗が見つかりませんでした</div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                {visibleShops.map((shop) => (
+                  <ShopCard key={shop.id} shop={shop} showPrefecture={prefectureFilter === null} />
+                ))}
+              </div>
+              {filtered.length > visibleCount && (
+                <button
+                  onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+                  className="w-full text-center text-sm text-blue-600 hover:underline mt-4 py-2"
+                >
+                  もっと見る
+                </button>
+              )}
+            </>
           )}
-        </div>
-
-        {/* 店舗リスト */}
-        <div className="w-80 border-l bg-gray-50 overflow-y-auto">
-          <div className="px-3 py-2 text-xs text-gray-500 border-b bg-white">
-            {visibleInList.length}件表示（表示中の地図範囲）
-          </div>
-          <div className="p-2 flex flex-col gap-2">
-            {loading ? (
-              <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
-            ) : visibleInList.length === 0 ? (
-              <div className="text-center text-gray-400 text-sm py-8">店舗が見つかりませんでした</div>
-            ) : (
-              visibleInList.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} showPrefecture={false} />
-              ))
-            )}
-          </div>
         </div>
       </div>
     </div>

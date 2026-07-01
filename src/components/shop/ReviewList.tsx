@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { FORMAT_LABELS, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
+import StarRating from '@/components/ui/StarRating'
+
+const RATING_AXIS_LABELS = ['品揃え', '価格', 'スペース', '接客', 'アクセス']
 
 type Props = {
   reviews: ReviewWithLikes[]
@@ -14,6 +17,8 @@ const SORT_OPTIONS = [
   { key: 'newest', label: '最新順' },
   { key: 'likes', label: 'いいね数順' },
 ]
+
+const BODY_TRUNCATE_LENGTH = 150
 
 export default function ReviewList({ reviews }: Props) {
   const router = useRouter()
@@ -25,6 +30,7 @@ export default function ReviewList({ reviews }: Props) {
   const [formatFilter, setFormatFilter] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState('newest')
   const [pending, setPending] = useState<Set<string>>(new Set())
+  const [expandedBodyIds, setExpandedBodyIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const load = async () => {
@@ -114,6 +120,15 @@ export default function ReviewList({ reviews }: Props) {
     })
   }
 
+  const toggleBodyExpanded = (reviewId: string) => {
+    setExpandedBodyIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(reviewId)) next.delete(reviewId)
+      else next.add(reviewId)
+      return next
+    })
+  }
+
   if (reviews.length === 0) return null
 
   return (
@@ -167,12 +182,6 @@ export default function ReviewList({ reviews }: Props) {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-yellow-400 text-xs">
-                  {'★'.repeat(Math.round(
-                    (review.stock_rating + review.price_rating + review.playspace_rating +
-                      review.staff_rating + review.access_rating) / 5
-                  ))}
-                </div>
                 <div className="text-xs text-gray-400">
                   {new Date(review.created_at).toLocaleDateString('ja-JP')}
                   {review.is_edited && ' · 編集済み'}
@@ -180,16 +189,48 @@ export default function ReviewList({ reviews }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 p-2 bg-gray-50 rounded-lg mb-2 text-xs">
-              <div className="flex justify-between"><span className="text-gray-400">品揃え</span><span>{'★'.repeat(review.stock_rating)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">価格</span><span>{'★'.repeat(review.price_rating)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">スペース</span><span>{'★'.repeat(review.playspace_rating)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">接客</span><span>{'★'.repeat(review.staff_rating)}</span></div>
-              <div className="flex justify-between col-span-2"><span className="text-gray-400">アクセス</span><span>{'★'.repeat(review.access_rating)}</span></div>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 bg-gray-50 rounded-lg mb-2 px-2.5 py-1.5 text-xs">
+              <span className="flex items-center gap-1 whitespace-nowrap pr-1 mr-1 border-r border-gray-200">
+                <StarRating
+                  value={
+                    (review.stock_rating + review.price_rating + review.playspace_rating +
+                      review.staff_rating + review.access_rating) / 5
+                  }
+                  size="sm"
+                />
+              </span>
+              {RATING_AXIS_LABELS.map((label, i) => (
+                <span key={label} className="whitespace-nowrap">
+                  <span className="text-gray-400">{label}</span>{' '}
+                  <span className="font-medium text-gray-700">
+                    {[
+                      review.stock_rating,
+                      review.price_rating,
+                      review.playspace_rating,
+                      review.staff_rating,
+                      review.access_rating,
+                    ][i]}
+                  </span>
+                </span>
+              ))}
             </div>
 
             {review.body && (
-              <div className="text-sm text-gray-700 leading-relaxed">{review.body}</div>
+              <div>
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
+                  {review.body.length > BODY_TRUNCATE_LENGTH && !expandedBodyIds.has(review.id)
+                    ? `${review.body.slice(0, BODY_TRUNCATE_LENGTH)}…`
+                    : review.body}
+                </div>
+                {review.body.length > BODY_TRUNCATE_LENGTH && (
+                  <button
+                    onClick={() => toggleBodyExpanded(review.id)}
+                    className="text-xs text-blue-600 hover:underline mt-1"
+                  >
+                    {expandedBodyIds.has(review.id) ? '閉じる' : '続きを読む'}
+                  </button>
+                )}
+              </div>
             )}
 
             <div className="flex items-center gap-2 mt-2">

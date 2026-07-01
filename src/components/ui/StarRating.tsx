@@ -16,10 +16,16 @@ export default function StarRating({ value, size = 'md', showNumber = true }: Pr
   }[size]
 
   const stars = Array.from({ length: 5 }, (_, i) => {
-    const filled = i < Math.round(value)
+    const fillPercent = Math.max(0, Math.min(1, value - i)) * 100
     return (
-      <span key={i} className={filled ? 'text-yellow-400' : 'text-gray-300'}>
-        ★
+      <span key={i} className="relative inline-block">
+        <span className="text-gray-300">★</span>
+        <span
+          className="absolute inset-0 text-yellow-400 overflow-hidden whitespace-nowrap"
+          style={{ width: `${fillPercent}%` }}
+        >
+          ★
+        </span>
       </span>
     )
   })

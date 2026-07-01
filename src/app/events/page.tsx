@@ -148,7 +148,7 @@ export default function EventsPage() {
   }, [location, radiusKey, selectedFormat, selectedDay, days])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10 flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <BackButton />

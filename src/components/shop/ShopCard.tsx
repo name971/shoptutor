@@ -44,10 +44,10 @@ export default function ShopCard({ shop, distance, showPrefecture = true }: Prop
             )}
           </div>
         )}
-        <div className="font-medium text-sm mb-1">{shop.name}</div>
-        <div className="flex items-center gap-1 mb-1">
-          <StarRating value={shop.avg_total} size="sm" />
-          <span className="text-xs text-gray-400">（{shop.review_count}件）</span>
+        <div className="font-semibold text-base mb-1">{shop.name}</div>
+        <div className="flex items-center gap-1.5 mb-1">
+          <StarRating value={shop.avg_total} size="md" />
+          <span className="text-sm text-gray-400">（{shop.review_count}件）</span>
         </div>
         {(showPrefecture || (distance !== null && distance !== undefined)) && (
           <div className="text-xs text-gray-500 mb-2">

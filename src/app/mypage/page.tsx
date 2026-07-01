@@ -225,7 +225,7 @@ export default function MyPage() {
   if (checking) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <BackButton />
         <div className="font-bold text-sm flex-1">マイページ</div>
