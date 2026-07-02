@@ -52,7 +52,7 @@ export default function LoginPage() {
           Googleでログイン
         </button>
         <button
-          onClick={() => handleLogin('twitter')}
+          onClick={() => handleLogin('x')}
           className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-black px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-gray-800 transition-colors"
         >
           Xでログイン
