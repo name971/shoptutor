@@ -18,12 +18,18 @@ type Props = {
 
 const PAGE_SIZE = 10
 
+// shops.other_countは other/vintage/unknown をまとめた集計値なので、
+// 「その他」で絞り込む際もこの3つをまとめて対象にする
+const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
+
 export default function OfficialEventsSection({ weeklyEventCount, formatCounts, events }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const filteredEvents = selectedFormat
-    ? events.filter((e) => e.format === selectedFormat)
+    ? events.filter((e) =>
+        selectedFormat === 'other' ? OTHER_FORMAT_KEYS.includes(e.format) : e.format === selectedFormat
+      )
     : events
   const visibleEvents = filteredEvents.slice(0, visibleCount)
 
@@ -81,7 +87,7 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
                 <span className="text-gray-700 truncate flex-1">{event.title}</span>
                 <div className="flex items-center gap-2 ml-2">
                   <FormatBadge format={event.format} size="sm" />
-                  <span className="text-gray-400 whitespace-nowrap">
+                  <span className="text-gray-600 whitespace-nowrap">
                     {event.held_at}
                     {event.start_time && ` ${event.start_time}〜`}
                   </span>

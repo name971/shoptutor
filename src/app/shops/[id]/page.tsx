@@ -32,6 +32,7 @@ export default async function ShopDetailPage({ params }: Props) {
     .eq('shop_id', id)
     .gte('held_at', new Date().toISOString().split('T')[0])
     .order('held_at', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
 
   const { data: reviewsData } = await supabase
     .from('reviews')

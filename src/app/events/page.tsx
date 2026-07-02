@@ -18,6 +18,10 @@ const FORMATS = [
   { key: 'other',     label: 'その他' },
 ]
 
+// shops.other_countは other/vintage/unknown をまとめた集計値なので、
+// 「その他」で絞り込む際もこの3つをまとめて対象にする
+const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
+
 const RADIUS_OPTIONS = [
   { key: '3', label: '3km', km: 3 },
   { key: '5', label: '5km', km: 5 },
@@ -40,11 +44,28 @@ type EventItem = {
   title: string
   format: string
   held_at: string
+  start_time: string | null
   shop: ShopInfo | null
 }
 
 function dateKey(d: Date) {
   return d.toISOString().split('T')[0]
+}
+
+const FILTERS_STORAGE_KEY = 'shoptutor_events_filters'
+
+function loadSavedFilters(): {
+  radiusKey: (typeof RADIUS_OPTIONS)[number]['key']
+  selectedFormat: string | null
+  selectedDay: string | null
+} | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(FILTERS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 export default function EventsPage() {
@@ -53,8 +74,33 @@ export default function EventsPage() {
   const [radiusKey, setRadiusKey] = useState<(typeof RADIUS_OPTIONS)[number]['key']>('5')
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [filtersRestored, setFiltersRestored] = useState(false)
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
+  // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
+  useEffect(() => {
+    const saved = loadSavedFilters()
+    if (saved) {
+      setRadiusKey(saved.radiusKey ?? '5')
+      setSelectedFormat(saved.selectedFormat ?? null)
+      setSelectedDay(saved.selectedDay ?? null)
+    }
+    setFiltersRestored(true)
+  }, [])
+
+  useEffect(() => {
+    if (!filtersRestored) return
+    try {
+      window.sessionStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({ radiusKey, selectedFormat, selectedDay })
+      )
+    } catch {
+      // 保存失敗は無視
+    }
+  }, [filtersRestored, radiusKey, selectedFormat, selectedDay])
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -127,8 +173,11 @@ export default function EventsPage() {
         .gte('held_at', selectedDay ?? startDate)
         .lte('held_at', selectedDay ?? endDate)
         .order('held_at', { ascending: true })
+        .order('start_time', { ascending: true, nullsFirst: false })
 
-      if (selectedFormat) {
+      if (selectedFormat === 'other') {
+        query = query.in('format', OTHER_FORMAT_KEYS)
+      } else if (selectedFormat) {
         query = query.eq('format', selectedFormat)
       }
 
@@ -157,8 +206,7 @@ export default function EventsPage() {
             <button
               key={r.key}
               onClick={() => setRadiusKey(r.key)}
-              disabled={!location}
-              className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors disabled:opacity-40 ${
+              className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
                 radiusKey === r.key
                   ? 'bg-blue-50 border-blue-400 text-blue-700'
                   : 'bg-white border-gray-200 text-gray-600'
@@ -245,7 +293,10 @@ export default function EventsPage() {
                       <span className="ml-1">· {event.shop.distance.toFixed(1)}km</span>
                     )}
                   </span>
-                  <span>{event.held_at}</span>
+                  <span className="text-gray-600">
+                    {event.held_at}
+                    {event.start_time && ` ${event.start_time}〜`}
+                  </span>
                 </div>
               </Link>
             ))}

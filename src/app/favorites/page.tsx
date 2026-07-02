@@ -25,6 +25,10 @@ const FORMATS = [
   { key: 'other',     label: 'その他' },
 ]
 
+// shops.other_countは other/vintage/unknown をまとめた集計値なので、
+// 「その他」で絞り込む際もこの3つをまとめて対象にする
+const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
+
 const FORMAT_FILTER_STORAGE_KEY = 'favorites-event-format-filter'
 const PAGE_STATE_STORAGE_KEY = 'favorites-page-state'
 const PAGE_SIZE = 10
@@ -80,7 +84,12 @@ export default function FavoritesPage() {
   }
 
   const filteredEvents =
-    selectedFormats.size === 0 ? events : events.filter((e) => selectedFormats.has(e.format))
+    selectedFormats.size === 0
+      ? events
+      : events.filter((e) =>
+          selectedFormats.has(e.format) ||
+          (selectedFormats.has('other') && OTHER_FORMAT_KEYS.includes(e.format))
+        )
   const visibleEvents = filteredEvents.slice(0, visibleEventCount)
 
   useEffect(() => {
@@ -126,6 +135,7 @@ export default function FavoritesPage() {
         .gte('held_at', today)
         .lte('held_at', nextWeek)
         .order('held_at', { ascending: true })
+        .order('start_time', { ascending: true, nullsFirst: false })
       setEvents((eventsData as FavoriteEvent[]) ?? [])
 
       setLoading(false)
