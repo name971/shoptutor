@@ -28,6 +28,12 @@ export type Shop = {
   view_count: number
 }
 
+// 一覧・地図表示で使うカラムのみに絞った型（店舗詳細ページ専用の5軸平均・other_count等は含まない）
+export type ShopListItem = Omit<
+  Shop,
+  'official_id' | 'status' | 'other_count' | 'avg_stock' | 'avg_price' | 'avg_playspace' | 'avg_staff' | 'avg_access'
+>
+
 export type Event = {
   id: string
   shop_id: string

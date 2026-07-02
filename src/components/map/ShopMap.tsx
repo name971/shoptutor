@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 import { createShopMarkerIcon } from './ShopMarker'
 import ShopPopup from './ShopPopup'
 import { renderToString } from 'react-dom/server'
@@ -26,9 +26,9 @@ function createClusterLayer(L: any, radius: number) {
 }
 
 type Props = {
-  shops: Shop[]
+  shops: ShopListItem[]
   visibleCount?: number
-  onShopSelect?: (shop: Shop) => void
+  onShopSelect?: (shop: ShopListItem) => void
   onBoundsChange?: (bounds: MapBounds) => void
 }
 

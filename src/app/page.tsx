@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
 import AuthStatus from '@/components/auth/AuthStatus'
@@ -56,9 +56,9 @@ function loadSavedFilters(): {
 }
 
 export default function HomePage() {
-  const [shops, setShops] = useState<Shop[]>([])
+  const [shops, setShops] = useState<ShopListItem[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
-  const [filtered, setFiltered] = useState<Shop[]>([])
+  const [filtered, setFiltered] = useState<ShopListItem[]>([])
   const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
@@ -91,7 +91,12 @@ export default function HomePage() {
     const fetchShops = async () => {
       const supabase = createClient()
       const [{ data }, { data: favData }] = await Promise.all([
-        supabase.from('shops').select('*').eq('status', 'active'),
+        supabase
+          .from('shops')
+          .select(
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+          )
+          .eq('status', 'active'),
         supabase.from('shop_favorites').select('shop_id'),
       ])
       if (data) {

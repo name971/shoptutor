@@ -1,4 +1,4 @@
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 
 const WEIGHTS = {
   rating: 0.4,
@@ -8,7 +8,7 @@ const WEIGHTS = {
 }
 
 export function computeRecommendScores(
-  shops: Shop[],
+  shops: ShopListItem[],
   favoriteCounts: Map<string, number>
 ): Map<string, number> {
   const shopsWithReviews = shops.filter((s) => s.review_count > 0)

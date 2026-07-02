@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
 import AuthStatus from '@/components/auth/AuthStatus'
@@ -51,9 +51,9 @@ function loadSavedFilters(): {
 }
 
 export default function MapPage() {
-  const [shops, setShops] = useState<Shop[]>([])
+  const [shops, setShops] = useState<ShopListItem[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
-  const [filtered, setFiltered] = useState<Shop[]>([])
+  const [filtered, setFiltered] = useState<ShopListItem[]>([])
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [selectedSort, setSelectedSort] = useState('recommended')
   const [wpnOnly, setWpnOnly] = useState(false)
@@ -61,7 +61,7 @@ export default function MapPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filtersRestored, setFiltersRestored] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
+  const [selectedShop, setSelectedShop] = useState<ShopListItem | null>(null)
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
@@ -93,7 +93,12 @@ export default function MapPage() {
     const fetchShops = async () => {
       const supabase = createClient()
       const [{ data }, { data: favData }] = await Promise.all([
-        supabase.from('shops').select('*').eq('status', 'active'),
+        supabase
+          .from('shops')
+          .select(
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+          )
+          .eq('status', 'active'),
         supabase.from('shop_favorites').select('shop_id'),
       ])
       if (data) {

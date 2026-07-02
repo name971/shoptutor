@@ -1,11 +1,11 @@
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 import ShopBadges, { isNew } from '@/components/ui/ShopBadges'
 import StarRating from '@/components/ui/StarRating'
 import FormatBadge from '@/components/ui/FormatBadge'
 import Link from 'next/link'
 
 type Props = {
-  shop: Shop
+  shop: ShopListItem
   distance?: number | null
   showPrefecture?: boolean
 }

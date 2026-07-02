@@ -1,9 +1,9 @@
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 import ShopBadges from '@/components/ui/ShopBadges'
 import StarRating from '@/components/ui/StarRating'
 
 type Props = {
-  shop: Shop
+  shop: ShopListItem
 }
 
 export default function ShopPopup({ shop }: Props) {

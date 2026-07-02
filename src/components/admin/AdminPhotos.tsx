@@ -89,7 +89,7 @@ export default function AdminPhotos() {
         photos.map((photo) => (
           <div key={photo.id} className="bg-white rounded-xl border overflow-hidden">
             <div className="aspect-square">
-              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
             </div>
             <div className="p-1.5 text-[10px] text-gray-500">
               <div className="truncate">{photo.shops?.name}</div>

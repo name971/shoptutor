@@ -128,7 +128,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
         <div className="grid grid-cols-3 gap-2 mb-3">
           {visible.map((photo) => (
             <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden border">
-              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
               {userId === photo.user_id && (
                 <button
                   onClick={() => handleDelete(photo.id)}

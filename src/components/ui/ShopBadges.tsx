@@ -1,7 +1,7 @@
-import { Shop } from '@/types'
+import { ShopListItem } from '@/types'
 
 type Props = {
-  shop: Shop
+  shop: ShopListItem
   size?: 'sm' | 'md'
   showNew?: boolean
   showWpn?: boolean
