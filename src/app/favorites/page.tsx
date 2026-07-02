@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Shop, Event } from '@/types'
+import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
@@ -15,20 +15,6 @@ const TABS = [
   { key: 'shops', label: '店舗一覧' },
   { key: 'events', label: '今週のイベント' },
 ] as const
-
-const FORMATS = [
-  { key: 'commander', label: 'コマンダー' },
-  { key: 'standard',  label: 'スタンダード' },
-  { key: 'modern',    label: 'モダン' },
-  { key: 'pioneer',   label: 'パイオニア' },
-  { key: 'legacy',    label: 'レガシー' },
-  { key: 'limited',   label: 'リミテッド' },
-  { key: 'other',     label: 'その他' },
-]
-
-// shops.other_countは other/vintage/unknown をまとめた集計値なので、
-// 「その他」で絞り込む際もこの3つをまとめて対象にする
-const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
 
 const FORMAT_FILTER_STORAGE_KEY = 'favorites-event-format-filter'
 const PAGE_STATE_STORAGE_KEY = 'favorites-page-state'

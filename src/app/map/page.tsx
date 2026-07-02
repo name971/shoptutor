@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ShopListItem } from '@/types'
+import {
+  ShopListItem,
+  FORMAT_FILTER_OPTIONS as FORMATS,
+  RECOMMEND_SORT_OPTIONS as SORT_OPTIONS,
+} from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
 import AuthStatus from '@/components/auth/AuthStatus'
@@ -17,21 +21,6 @@ const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
     </div>
   ),
 })
-
-const FORMATS = [
-  { key: 'commander', label: 'コマンダー' },
-  { key: 'standard',  label: 'スタンダード' },
-  { key: 'modern',    label: 'モダン' },
-  { key: 'pioneer',   label: 'パイオニア' },
-  { key: 'legacy',    label: 'レガシー' },
-  { key: 'limited',   label: 'リミテッド' },
-]
-
-const SORT_OPTIONS = [
-  { key: 'recommended', label: 'おすすめ順' },
-  { key: 'rating',  label: '評価順' },
-  { key: 'event',   label: 'イベント数順' },
-]
 
 const FILTERS_STORAGE_KEY = 'shoptutor_map_filters'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Event } from '@/types'
+import { Event, OTHER_FORMAT_KEYS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import { isEventPast } from '@/lib/eventTime'
 
@@ -17,10 +17,6 @@ type Props = {
 }
 
 const PAGE_SIZE = 10
-
-// shops.other_countは other/vintage/unknown をまとめた集計値なので、
-// 「その他」で絞り込む際もこの3つをまとめて対象にする
-const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
 
 export default function OfficialEventsSection({ formatCounts, events }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)

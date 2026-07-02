@@ -98,3 +98,28 @@ export const FORMAT_COLORS: Record<string, { bg: string; text: string }> = {
   vintage:   { bg: 'bg-pink-100',   text: 'text-pink-800' },
   other:     { bg: 'bg-gray-100',   text: 'text-gray-700' },
 }
+
+// 店舗・イベントのフォーマット絞り込みチップ（ヴィンテージは対象外）
+export const FORMAT_FILTER_OPTIONS = [
+  { key: 'commander', label: 'コマンダー' },
+  { key: 'standard',  label: 'スタンダード' },
+  { key: 'modern',    label: 'モダン' },
+  { key: 'pioneer',   label: 'パイオニア' },
+  { key: 'legacy',    label: 'レガシー' },
+  { key: 'limited',   label: 'リミテッド' },
+] as const
+
+export const FORMAT_FILTER_OPTIONS_WITH_OTHER = [
+  ...FORMAT_FILTER_OPTIONS,
+  { key: 'other', label: 'その他' },
+] as const
+
+// shops.other_countは other/vintage/unknown をまとめた集計値なので、
+// 「その他」で絞り込む際もこの3つをまとめて対象にする
+export const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
+
+export const RECOMMEND_SORT_OPTIONS = [
+  { key: 'recommended', label: 'おすすめ順' },
+  { key: 'rating',       label: '評価順' },
+  { key: 'event',        label: 'イベント数順' },
+] as const

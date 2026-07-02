@@ -5,23 +5,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { haversineDistanceKm } from '@/lib/geo'
 import { isEventPast, jstDateKey } from '@/lib/eventTime'
-import { FORMAT_LABELS } from '@/types'
+import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-
-const FORMATS = [
-  { key: 'commander', label: 'コマンダー' },
-  { key: 'standard',  label: 'スタンダード' },
-  { key: 'modern',    label: 'モダン' },
-  { key: 'pioneer',   label: 'パイオニア' },
-  { key: 'legacy',    label: 'レガシー' },
-  { key: 'limited',   label: 'リミテッド' },
-  { key: 'other',     label: 'その他' },
-]
-
-// shops.other_countは other/vintage/unknown をまとめた集計値なので、
-// 「その他」で絞り込む際もこの3つをまとめて対象にする
-const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
 
 const RADIUS_OPTIONS = [
   { key: '3', label: '3km', km: 3 },
