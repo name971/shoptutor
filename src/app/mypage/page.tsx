@@ -418,6 +418,11 @@ export default function MyPage() {
               {deleting ? '削除中...' : 'アカウントを削除する'}
             </button>
           </div>
+
+          <div className="text-center text-xs text-gray-400 pb-2 flex items-center justify-center gap-3">
+            <Link href="/terms" className="hover:underline">利用規約</Link>
+            <Link href="/privacy" className="hover:underline">プライバシーポリシー</Link>
+          </div>
         </div>
       )}
     </div>

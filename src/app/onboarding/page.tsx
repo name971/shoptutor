@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { FORMAT_LABELS, FORMAT_COLORS } from '@/types'
 
@@ -11,6 +12,7 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
   const [selected, setSelected] = useState<string[]>([])
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -36,6 +38,10 @@ export default function OnboardingPage() {
       setError('1つ以上選択してください')
       return
     }
+    if (!agreedToTerms) {
+      setError('利用規約への同意が必要です')
+      return
+    }
     setSaving(true)
     setError('')
 
@@ -51,7 +57,7 @@ export default function OnboardingPage() {
 
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ main_formats: selected })
+      .update({ main_formats: selected, terms_agreed_at: new Date().toISOString() })
       .eq('id', user.id)
 
     if (updateError) {
@@ -95,6 +101,21 @@ export default function OnboardingPage() {
             )
           })}
         </div>
+
+        <label className="mt-6 flex items-start gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <Link href="/terms" target="_blank" className="text-blue-600 hover:underline">利用規約</Link>
+            及び
+            <Link href="/privacy" target="_blank" className="text-blue-600 hover:underline">プライバシーポリシー</Link>
+            に同意する
+          </span>
+        </label>
 
         {error && <p className="mt-4 text-sm text-red-500 text-center">{error}</p>}
 
