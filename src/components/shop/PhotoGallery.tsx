@@ -106,9 +106,16 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
     if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
 
     const supabase = createClient()
+    const target = photos.find((p) => p.id === photoId)
     const { error } = await supabase.from('shop_photos').delete().eq('id', photoId)
 
     if (!error) {
+      if (target) {
+        const storagePath = target.url.split('/shop-photos/')[1]
+        if (storagePath) {
+          await supabase.storage.from('shop-photos').remove([storagePath])
+        }
+      }
       setPhotos((prev) => prev.filter((p) => p.id !== photoId))
     }
   }

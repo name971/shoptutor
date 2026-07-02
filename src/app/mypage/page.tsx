@@ -169,6 +169,8 @@ export default function MyPage() {
 
     setError('')
     const supabase = createClient()
+    const target = photos.find((p) => p.id === photoId)
+
     const { error: deleteError } = await supabase
       .from('shop_photos')
       .delete()
@@ -177,6 +179,13 @@ export default function MyPage() {
     if (deleteError) {
       setError(`削除に失敗しました: ${deleteError.message}`)
       return
+    }
+
+    if (target) {
+      const storagePath = target.url.split('/shop-photos/')[1]
+      if (storagePath) {
+        await supabase.storage.from('shop-photos').remove([storagePath])
+      }
     }
 
     setPhotos((prev) => prev.filter((p) => p.id !== photoId))
