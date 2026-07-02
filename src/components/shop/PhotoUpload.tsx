@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import imageCompression from 'browser-image-compression'
 import { createClient } from '@/lib/supabase'
 
 const MAX_PHOTOS = 3
@@ -72,6 +71,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
     setError('')
 
     const uploaded: { id: string; url: string; user_id: string; like_count: number }[] = []
+    const { default: imageCompression } = await import('browser-image-compression')
 
     for (let i = 0; i < files.length; i++) {
       const compressed = await imageCompression(files[i], {

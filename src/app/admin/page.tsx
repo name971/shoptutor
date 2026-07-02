@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
 import BackButton from '@/components/ui/BackButton'
-import AdminShops from '@/components/admin/AdminShops'
-import AdminReviews from '@/components/admin/AdminReviews'
-import AdminPhotos from '@/components/admin/AdminPhotos'
-import AdminUsers from '@/components/admin/AdminUsers'
+
+const AdminShops = dynamic(() => import('@/components/admin/AdminShops'))
+const AdminReviews = dynamic(() => import('@/components/admin/AdminReviews'))
+const AdminPhotos = dynamic(() => import('@/components/admin/AdminPhotos'))
+const AdminUsers = dynamic(() => import('@/components/admin/AdminUsers'))
 
 const TABS = [
   { key: 'shops', label: '店舗管理' },
