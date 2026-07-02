@@ -165,6 +165,7 @@ export default function MyPage() {
   }
 
   const handleDeletePhoto = async (photoId: string) => {
+    if (!userId) return
     if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
 
     setError('')
@@ -175,6 +176,7 @@ export default function MyPage() {
       .from('shop_photos')
       .delete()
       .eq('id', photoId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       setError(`削除に失敗しました: ${deleteError.message}`)
@@ -192,10 +194,15 @@ export default function MyPage() {
   }
 
   const handleDeleteReview = async (reviewId: string) => {
+    if (!userId) return
     if (!window.confirm('このレビューを削除しますか？この操作は取り消せません。')) return
 
     const supabase = createClient()
-    const { error: deleteError } = await supabase.from('reviews').delete().eq('id', reviewId)
+    const { error: deleteError } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId)
+      .eq('user_id', userId)
 
     if (!deleteError) {
       setReviews((prev) => prev.filter((r) => r.id !== reviewId))

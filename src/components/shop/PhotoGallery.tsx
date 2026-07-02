@@ -103,11 +103,16 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
   }
 
   const handleDelete = async (photoId: string) => {
+    if (!userId) return
     if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
 
     const supabase = createClient()
     const target = photos.find((p) => p.id === photoId)
-    const { error } = await supabase.from('shop_photos').delete().eq('id', photoId)
+    const { error } = await supabase
+      .from('shop_photos')
+      .delete()
+      .eq('id', photoId)
+      .eq('user_id', userId)
 
     if (!error) {
       if (target) {

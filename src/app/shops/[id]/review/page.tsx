@@ -23,6 +23,7 @@ export default function ReviewFormPage() {
 
   const [checking, setChecking] = useState(true)
   const [shopName, setShopName] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
   const [reviewId, setReviewId] = useState<string | null>(null)
   const [ratings, setRatings] = useState<Record<string, number>>({
     stock_rating: 0,
@@ -47,6 +48,7 @@ export default function ReviewFormPage() {
         router.replace('/login')
         return
       }
+      setUserId(user.id)
 
       const { data: shop } = await supabase
         .from('shops')
@@ -111,7 +113,7 @@ export default function ReviewFormPage() {
     }
 
     const { error: saveError } = reviewId
-      ? await supabase.from('reviews').update({ ...payload, is_edited: true }).eq('id', reviewId)
+      ? await supabase.from('reviews').update({ ...payload, is_edited: true }).eq('id', reviewId).eq('user_id', user.id)
       : await supabase.from('reviews').insert({ ...payload, shop_id: shopId, user_id: user.id })
 
     if (saveError) {
@@ -125,12 +127,16 @@ export default function ReviewFormPage() {
   }
 
   const handleDelete = async () => {
-    if (!reviewId) return
+    if (!reviewId || !userId) return
     if (!window.confirm('このレビューを削除しますか？この操作は取り消せません。')) return
 
     setDeleting(true)
     const supabase = createClient()
-    const { error: deleteError } = await supabase.from('reviews').delete().eq('id', reviewId)
+    const { error: deleteError } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       setError('削除に失敗しました。もう一度お試しください。')
