@@ -11,7 +11,7 @@ shops.json と events_weekly.json を Supabase にインポートするスクリ
 import json
 import os
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import Counter
 from supabase import create_client
 
@@ -38,9 +38,6 @@ SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SECRET_KEY"]
 SHOPS_JSON    = "shops.json"
 EVENTS_JSON   = "events_weekly.json"
-
-# NEWバッジの期間
-NEW_DAYS = 30
 
 # -------------------------------------------------------
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -74,13 +71,20 @@ def main():
     # -------------------------------------------------------
     # STEP 1: 店舗データをupsert
     # -------------------------------------------------------
+    print("\n=== 既存店舗のfirst_listed_atを取得中 ===")
+    existing = supabase.table("shops").select("official_id, first_listed_at").execute()
+    existing_first_listed = {s["official_id"]: s["first_listed_at"] for s in existing.data}
+    print(f"既存店舗: {len(existing_first_listed)}件")
+
     print("\n=== 店舗データをインポート中 ===")
     now = datetime.utcnow().isoformat()
-    new_threshold = (datetime.utcnow() - timedelta(days=NEW_DAYS)).isoformat()
 
+    scraped_ids = {s["official_id"] for s in shops}
     shop_rows = []
     for s in shops:
         stats = calc_event_stats(s["official_id"], events)
+        # 既存店舗はfirst_listed_atを保持（NEWバッジが再スクレイピングのたびに誤発火しないように）
+        first_listed_at = existing_first_listed.get(s["official_id"], now)
         row = {
             "official_id":          s["official_id"],
             "name":                 s.get("name", ""),
@@ -91,7 +95,7 @@ def main():
             "is_wpn_premium":       s.get("is_wpn_premium", False),
             "is_teaching_meister":  s.get("is_teaching_meister", False),
             "status":               "active",
-            "first_listed_at":      now,
+            "first_listed_at":      first_listed_at,
             "last_seen_at":         now,
             "last_scraped_at":      now,
             **stats,
@@ -106,6 +110,17 @@ def main():
         print(f"  店舗 {i+1}〜{min(i+batch_size, len(shop_rows))}件 完了")
 
     print(f"店舗インポート完了: {len(shop_rows)}件")
+
+    # -------------------------------------------------------
+    # STEP 1b: 今回のスクレイピングに出てこなかった店舗をinactiveに
+    # -------------------------------------------------------
+    missing_ids = [oid for oid in existing_first_listed if oid not in scraped_ids]
+    if missing_ids:
+        print(f"\n=== 今回検出されなかった{len(missing_ids)}店舗をinactiveに更新中 ===")
+        for i in range(0, len(missing_ids), batch_size):
+            batch = missing_ids[i:i+batch_size]
+            supabase.table("shops").update({"status": "inactive"}).in_("official_id", batch).execute()
+        print("inactive更新完了")
 
     # -------------------------------------------------------
     # STEP 2: 店舗IDの対応表を作成（official_id → uuid）

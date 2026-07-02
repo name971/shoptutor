@@ -1,0 +1,43 @@
+name: Scrape shops and events
+
+on:
+  schedule:
+    # 12:00 JST = 03:00 UTC, every 2 days (approximate: runs on odd days of month)
+    - cron: '0 3 */2 * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Scrape mtg-jp.com
+        run: python scripts/scrape.py
+
+      - name: Import into Supabase
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/import.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add shops.json events_weekly.json
+          git diff --cached --quiet || git commit -m "chore: update scraped shop/event data"
+          git push

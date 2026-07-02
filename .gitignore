@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scraping intermediate checkpoints
+/shops_tmp.json
+/events_weekly_tmp.json
+
+# python
+__pycache__/
+*.pyc
