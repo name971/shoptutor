@@ -245,7 +245,7 @@ def scrape_shop_events(shop_id, shop_name):
             if not date_td:
                 continue
 
-            date = parse_date(date_td.get_text().strip())
+            date = parse_date(date_td.get_text(separator=' ').strip())
             if date is None:
                 continue
 
