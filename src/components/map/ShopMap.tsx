@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Shop } from '@/types'
 import { createShopMarkerIcon } from './ShopMarker'
 import ShopPopup from './ShopPopup'
@@ -39,6 +39,10 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
   const clusterRadiusRef = useRef<number | null>(null)
   const onShopSelectRef = useRef(onShopSelect)
   const onBoundsChangeRef = useRef(onBoundsChange)
+  const locationMarkerRef = useRef<any>(null)
+  const locationCircleRef = useRef<any>(null)
+  const [locating, setLocating] = useState(false)
+  const [locationError, setLocationError] = useState('')
 
   useEffect(() => {
     onShopSelectRef.current = onShopSelect
@@ -121,6 +125,35 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
       map.on('moveend', emitBounds)
       map.on('moveend', saveView)
 
+      map.on('locationfound', (e: any) => {
+        setLocating(false)
+        setLocationError('')
+
+        if (locationMarkerRef.current) map.removeLayer(locationMarkerRef.current)
+        if (locationCircleRef.current) map.removeLayer(locationCircleRef.current)
+
+        locationMarkerRef.current = L.circleMarker(e.latlng, {
+          radius: 8,
+          color: '#fff',
+          weight: 2,
+          fillColor: '#3b82f6',
+          fillOpacity: 1,
+        }).addTo(map)
+
+        locationCircleRef.current = L.circle(e.latlng, {
+          radius: e.accuracy,
+          color: '#3b82f6',
+          weight: 1,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.1,
+        }).addTo(map)
+      })
+
+      map.on('locationerror', () => {
+        setLocating(false)
+        setLocationError('位置情報を取得できませんでした')
+      })
+
       mapInstanceRef.current = map
       clusterRef.current = cluster
 
@@ -196,7 +229,38 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
     }
   }, [shops, clusterCountBasis])
 
+  const handleLocate = () => {
+    if (!mapInstanceRef.current) return
+    setLocating(true)
+    setLocationError('')
+    mapInstanceRef.current.locate({ setView: true, maxZoom: 15 })
+  }
+
   return (
-    <div ref={mapRef} className="w-full h-full" />
+    <div className="relative w-full h-full">
+      <div ref={mapRef} className="w-full h-full" />
+
+      <button
+        onClick={handleLocate}
+        disabled={locating}
+        aria-label="現在地を表示"
+        className="absolute bottom-6 right-3 z-[1000] w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-blue-600 disabled:opacity-50"
+      >
+        {locating ? (
+          <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+        ) : (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+          </svg>
+        )}
+      </button>
+
+      {locationError && (
+        <div className="absolute bottom-6 right-16 z-[1000] bg-white text-xs text-red-500 px-2 py-1 rounded-lg shadow-md border border-gray-200 whitespace-nowrap">
+          {locationError}
+        </div>
+      )}
+    </div>
   )
 }

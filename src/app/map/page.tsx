@@ -37,7 +37,6 @@ const FILTERS_STORAGE_KEY = 'shoptutor_map_filters'
 
 function loadSavedFilters(): {
   selectedFormat: string | null
-  selectedSort: string
   wpnOnly: boolean
   meisterOnly: boolean
   searchQuery: string
@@ -58,9 +57,7 @@ export default function MapPage() {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(
     () => loadSavedFilters()?.selectedFormat ?? null
   )
-  const [selectedSort, setSelectedSort] = useState(
-    () => loadSavedFilters()?.selectedSort ?? 'recommended'
-  )
+  const [selectedSort, setSelectedSort] = useState('recommended')
   const [wpnOnly, setWpnOnly] = useState(() => loadSavedFilters()?.wpnOnly ?? false)
   const [meisterOnly, setMeisterOnly] = useState(() => loadSavedFilters()?.meisterOnly ?? false)
   const [searchQuery, setSearchQuery] = useState(() => loadSavedFilters()?.searchQuery ?? '')
@@ -72,12 +69,12 @@ export default function MapPage() {
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({ selectedFormat, selectedSort, wpnOnly, meisterOnly, searchQuery })
+        JSON.stringify({ selectedFormat, wpnOnly, meisterOnly, searchQuery })
       )
     } catch {
       // 保存失敗は無視
     }
-  }, [selectedFormat, selectedSort, wpnOnly, meisterOnly, searchQuery])
+  }, [selectedFormat, wpnOnly, meisterOnly, searchQuery])
 
   useEffect(() => {
     const fetchShops = async () => {
