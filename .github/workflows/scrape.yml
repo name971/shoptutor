@@ -1,5 +1,6 @@
 name: Scrape shops and events
 
+# NOTE: trigger config below
 on:
   schedule:
     # 12:00 JST = 03:00 UTC, every 2 days (approximate: runs on odd days of month)
