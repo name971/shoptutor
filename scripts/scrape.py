@@ -94,6 +94,12 @@ def parse_date(text):
             return None
     return None
 
+def parse_time(text):
+    m = re.search(r'(\d{1,2}):(\d{2})', text)
+    if m:
+        return f"{int(m.group(1)):02d}:{m.group(2)}"
+    return None
+
 def parse_latlng(href):
     """Google MapsのURLから緯度経度を抽出"""
     m = re.search(r'q=([\d.]+),([\d.]+)', href)
@@ -245,9 +251,11 @@ def scrape_shop_events(shop_id, shop_name):
             if not date_td:
                 continue
 
-            date = parse_date(date_td.get_text(separator=' ').strip())
+            date_text = date_td.get_text(separator=' ').strip()
+            date = parse_date(date_text)
             if date is None:
                 continue
+            start_time = parse_time(date_text)
 
             page_event_count += 1
 
@@ -268,6 +276,7 @@ def scrape_shop_events(shop_id, shop_name):
                 "format_raw": format_text,
                 "format": normalize_format(format_text + " " + event_title),
                 "held_at": str(date),
+                "start_time": start_time,
                 "prefecture": pref_td.get_text().strip() if pref_td else "",
             })
 

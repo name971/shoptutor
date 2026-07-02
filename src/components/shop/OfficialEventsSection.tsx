@@ -16,12 +16,21 @@ type Props = {
   events: Event[]
 }
 
+const PAGE_SIZE = 10
+
 export default function OfficialEventsSection({ weeklyEventCount, formatCounts, events }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const filteredEvents = selectedFormat
     ? events.filter((e) => e.format === selectedFormat)
     : events
+  const visibleEvents = filteredEvents.slice(0, visibleCount)
+
+  const handleSelectFormat = (format: string | null) => {
+    setSelectedFormat(format)
+    setVisibleCount(PAGE_SIZE)
+  }
 
   if (weeklyEventCount === 0) {
     return (
@@ -38,7 +47,7 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
 
       <div className="grid grid-cols-2 gap-2 mb-3">
         <button
-          onClick={() => setSelectedFormat(null)}
+          onClick={() => handleSelectFormat(null)}
           className={`text-left rounded-lg p-2 transition-colors ${
             selectedFormat === null ? 'bg-blue-50 ring-1 ring-blue-300' : 'bg-gray-50'
           }`}
@@ -51,7 +60,7 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
         {formatCounts.map((f) => (
           <button
             key={f.key}
-            onClick={() => setSelectedFormat(selectedFormat === f.key ? null : f.key)}
+            onClick={() => handleSelectFormat(selectedFormat === f.key ? null : f.key)}
             className={`text-left rounded-lg p-2 transition-colors ${
               selectedFormat === f.key ? 'bg-blue-50 ring-1 ring-blue-300' : 'bg-gray-50'
             }`}
@@ -65,17 +74,30 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
       </div>
 
       {filteredEvents.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          {filteredEvents.map((event) => (
-            <div key={event.id} className="flex items-center justify-between text-xs py-1 border-t">
-              <span className="text-gray-700 truncate flex-1">{event.title}</span>
-              <div className="flex items-center gap-2 ml-2">
-                <FormatBadge format={event.format} size="sm" />
-                <span className="text-gray-400 whitespace-nowrap">{event.held_at}</span>
+        <>
+          <div className="flex flex-col gap-1">
+            {visibleEvents.map((event) => (
+              <div key={event.id} className="flex items-center justify-between text-xs py-1 border-t">
+                <span className="text-gray-700 truncate flex-1">{event.title}</span>
+                <div className="flex items-center gap-2 ml-2">
+                  <FormatBadge format={event.format} size="sm" />
+                  <span className="text-gray-400 whitespace-nowrap">
+                    {event.held_at}
+                    {event.start_time && ` ${event.start_time}〜`}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          {filteredEvents.length > visibleCount && (
+            <button
+              onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+              className="w-full text-center text-xs text-blue-600 hover:underline pt-2"
+            >
+              もっと見る
+            </button>
+          )}
+        </>
       ) : (
         selectedFormat && (
           <div className="text-xs text-gray-400 pt-1 border-t">

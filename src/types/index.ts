@@ -35,6 +35,7 @@ export type Event = {
   format: string
   format_raw: string
   held_at: string
+  start_time: string | null
   prefecture: string
 }
 

@@ -148,6 +148,7 @@ def main():
             "format":     e.get("format", "other"),
             "format_raw": e.get("format_raw", ""),
             "held_at":    e.get("held_at"),
+            "start_time": e.get("start_time"),
             "prefecture": e.get("prefecture", ""),
             "scraped_at": now,
         })

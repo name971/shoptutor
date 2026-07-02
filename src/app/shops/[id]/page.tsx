@@ -32,7 +32,6 @@ export default async function ShopDetailPage({ params }: Props) {
     .eq('shop_id', id)
     .gte('held_at', new Date().toISOString().split('T')[0])
     .order('held_at', { ascending: true })
-    .limit(10)
 
   const { data: reviewsData } = await supabase
     .from('reviews')
@@ -67,6 +66,7 @@ export default async function ShopDetailPage({ params }: Props) {
     { key: 'pioneer',   label: 'パイオニア', count: shop.pioneer_count },
     { key: 'legacy',    label: 'レガシー', count: shop.legacy_count },
     { key: 'limited',   label: 'リミテッド', count: shop.limited_count },
+    { key: 'other',     label: 'その他', count: shop.other_count },
   ].filter((f) => f.count > 0)
 
   const RATING_LABELS = [
