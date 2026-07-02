@@ -28,13 +28,16 @@ export default function FavoriteButton({ shopId }: Props) {
       }
       setUserId(user.id)
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('shop_favorites')
         .select('shop_id')
         .eq('shop_id', shopId)
         .eq('user_id', user.id)
         .maybeSingle()
 
+      if (error) {
+        console.error('お気に入り状態の取得に失敗しました', error)
+      }
       setFavorited(!!data)
       setLoading(false)
     }
