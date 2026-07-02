@@ -41,7 +41,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-50 px-4">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-800">ShopTutor</h1>
-        <p className="mt-2 text-sm text-gray-500">MTG公認店舗レビューサイト</p>
+        <p className="mt-2 text-sm text-gray-500">MTG店舗レビューサイト</p>
       </div>
 
       <div className="w-full max-w-xs flex flex-col gap-3">
