@@ -12,7 +12,6 @@ type FormatCount = {
 }
 
 type Props = {
-  weeklyEventCount: number
   formatCounts: FormatCount[]
   events: Event[]
 }
@@ -23,13 +22,29 @@ const PAGE_SIZE = 10
 // 「その他」で絞り込む際もこの3つをまとめて対象にする
 const OTHER_FORMAT_KEYS = ['other', 'vintage', 'unknown']
 
-export default function OfficialEventsSection({ weeklyEventCount, formatCounts, events }: Props) {
+export default function OfficialEventsSection({ formatCounts, events }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const upcomingEvents = useMemo(
     () => events.filter((e) => !isEventPast(e.held_at, e.start_time)),
     [events]
+  )
+
+  // 集計タイルの数値は、DBの週次集計（スクレイピング時点のスナップショット）ではなく
+  // 実際に取得済みの今後のイベント一覧から数え直し、下の一覧と食い違わないようにする
+  const weeklyEventCount = upcomingEvents.length
+  const liveFormatCounts = useMemo(
+    () =>
+      formatCounts
+        .map((f) => ({
+          ...f,
+          count: upcomingEvents.filter((e) =>
+            f.key === 'other' ? OTHER_FORMAT_KEYS.includes(e.format) : e.format === f.key
+          ).length,
+        }))
+        .filter((f) => f.count > 0),
+    [formatCounts, upcomingEvents]
   )
 
   const filteredEvents = selectedFormat
@@ -69,7 +84,7 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
             {weeklyEventCount}<span className="text-xs text-gray-400">回</span>
           </div>
         </button>
-        {formatCounts.map((f) => (
+        {liveFormatCounts.map((f) => (
           <button
             key={f.key}
             onClick={() => handleSelectFormat(selectedFormat === f.key ? null : f.key)}

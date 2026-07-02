@@ -6,6 +6,7 @@ import FavoriteButton from '@/components/shop/FavoriteButton'
 import PhotoGallery from '@/components/shop/PhotoGallery'
 import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
+import { jstDateKey } from '@/lib/eventTime'
 import { notFound } from 'next/navigation'
 
 type Props = {
@@ -30,7 +31,7 @@ export default async function ShopDetailPage({ params }: Props) {
     .from('events')
     .select('*')
     .eq('shop_id', id)
-    .gte('held_at', new Date().toISOString().split('T')[0])
+    .gte('held_at', jstDateKey())
     .order('held_at', { ascending: true })
     .order('start_time', { ascending: true, nullsFirst: false })
 
@@ -124,7 +125,6 @@ export default async function ShopDetailPage({ params }: Props) {
 
         {/* 公式イベント情報 */}
         <OfficialEventsSection
-          weeklyEventCount={shop.weekly_event_count}
           formatCounts={formatCounts}
           events={events ?? []}
         />

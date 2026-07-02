@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { haversineDistanceKm } from '@/lib/geo'
-import { isEventPast } from '@/lib/eventTime'
+import { isEventPast, jstDateKey } from '@/lib/eventTime'
 import { FORMAT_LABELS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
@@ -47,10 +47,6 @@ type EventItem = {
   held_at: string
   start_time: string | null
   shop: ShopInfo | null
-}
-
-function dateKey(d: Date) {
-  return d.toISOString().split('T')[0]
 }
 
 const FILTERS_STORAGE_KEY = 'shoptutor_events_filters'
@@ -108,7 +104,7 @@ export default function EventsPage() {
       const d = new Date()
       d.setDate(d.getDate() + i)
       return {
-        key: dateKey(d),
+        key: jstDateKey(d),
         label: i === 0 ? '今日' : i === 1 ? '明日' : `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`,
       }
     })

@@ -7,7 +7,7 @@ import { Shop, Event } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-import { isEventPast } from '@/lib/eventTime'
+import { isEventPast, jstDateKey } from '@/lib/eventTime'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
 
@@ -124,10 +124,8 @@ export default function FavoritesPage() {
         .in('id', shopIds)
       setShops(shopsData ?? [])
 
-      const today = new Date().toISOString().split('T')[0]
-      const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0]
+      const today = jstDateKey()
+      const nextWeek = jstDateKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
 
       const { data: eventsData } = await supabase
         .from('events')
