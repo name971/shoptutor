@@ -40,5 +40,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add shops.json events_weekly.json
-          git diff --cached --quiet || git commit -m "chore: update scraped shop/event data"
-          git push
+          git diff --cached --quiet && exit 0
+
+          git commit -m "chore: update scraped shop/event data"
+
+          for i in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "push rejected (attempt $i), rebasing onto latest master..."
+            git fetch origin master
+            git rebase origin/master
+          done
+
+          echo "push failed after retries"
+          exit 1
