@@ -26,6 +26,7 @@ const FORMATS = [
 ]
 
 const FORMAT_FILTER_STORAGE_KEY = 'favorites-event-format-filter'
+const PAGE_STATE_STORAGE_KEY = 'favorites-page-state'
 const PAGE_SIZE = 10
 
 export default function FavoritesPage() {
@@ -37,13 +38,35 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(new Set())
   const [visibleEventCount, setVisibleEventCount] = useState(PAGE_SIZE)
+  const [pageStateRestored, setPageStateRestored] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
     if (saved) {
       setSelectedFormats(new Set(JSON.parse(saved)))
     }
+
+    try {
+      const savedState = sessionStorage.getItem(PAGE_STATE_STORAGE_KEY)
+      if (savedState) {
+        const parsed = JSON.parse(savedState)
+        setTab(parsed.tab ?? 'shops')
+        setVisibleEventCount(parsed.visibleEventCount ?? PAGE_SIZE)
+      }
+    } catch {
+      // 復元失敗は無視
+    }
+    setPageStateRestored(true)
   }, [])
+
+  useEffect(() => {
+    if (!pageStateRestored) return
+    try {
+      sessionStorage.setItem(PAGE_STATE_STORAGE_KEY, JSON.stringify({ tab, visibleEventCount }))
+    } catch {
+      // 保存失敗は無視
+    }
+  }, [pageStateRestored, tab, visibleEventCount])
 
   const toggleFormat = (format: string) => {
     setSelectedFormats((prev) => {
