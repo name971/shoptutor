@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { haversineDistanceKm } from '@/lib/geo'
+import { isEventPast } from '@/lib/eventTime'
 import { FORMAT_LABELS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
@@ -183,10 +184,12 @@ export default function EventsPage() {
 
       const { data: eventsData } = await query
 
-      const merged: EventItem[] = (eventsData ?? []).map((e) => ({
-        ...e,
-        shop: shopInfoMap.get(e.shop_id) ?? null,
-      }))
+      const merged: EventItem[] = (eventsData ?? [])
+        .filter((e) => !isEventPast(e.held_at, e.start_time))
+        .map((e) => ({
+          ...e,
+          shop: shopInfoMap.get(e.shop_id) ?? null,
+        }))
 
       merged.sort((a, b) => (a.shop?.distance ?? Infinity) - (b.shop?.distance ?? Infinity))
 

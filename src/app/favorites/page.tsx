@@ -7,6 +7,7 @@ import { Shop, Event } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
+import { isEventPast } from '@/lib/eventTime'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
 
@@ -136,7 +137,10 @@ export default function FavoritesPage() {
         .lte('held_at', nextWeek)
         .order('held_at', { ascending: true })
         .order('start_time', { ascending: true, nullsFirst: false })
-      setEvents((eventsData as FavoriteEvent[]) ?? [])
+      const upcoming = ((eventsData as FavoriteEvent[]) ?? []).filter(
+        (e) => !isEventPast(e.held_at, e.start_time)
+      )
+      setEvents(upcoming)
 
       setLoading(false)
     }

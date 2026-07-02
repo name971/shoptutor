@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Event } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
+import { isEventPast } from '@/lib/eventTime'
 
 type FormatCount = {
   key: string
@@ -26,11 +27,16 @@ export default function OfficialEventsSection({ weeklyEventCount, formatCounts, 
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
+  const upcomingEvents = useMemo(
+    () => events.filter((e) => !isEventPast(e.held_at, e.start_time)),
+    [events]
+  )
+
   const filteredEvents = selectedFormat
-    ? events.filter((e) =>
+    ? upcomingEvents.filter((e) =>
         selectedFormat === 'other' ? OTHER_FORMAT_KEYS.includes(e.format) : e.format === selectedFormat
       )
-    : events
+    : upcomingEvents
   const visibleEvents = filteredEvents.slice(0, visibleCount)
 
   const handleSelectFormat = (format: string | null) => {
