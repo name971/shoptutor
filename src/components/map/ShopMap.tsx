@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Shop } from '@/types'
 import { createShopMarkerIcon } from './ShopMarker'
 import ShopPopup from './ShopPopup'
@@ -33,6 +34,7 @@ type Props = {
 
 export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsChange }: Props) {
   const clusterCountBasis = visibleCount ?? shops.length
+  const router = useRouter()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const clusterRef = useRef<any>(null)
@@ -206,6 +208,16 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
 
         const popupHtml = renderToString(<ShopPopup shop={shop} />)
         marker.bindPopup(popupHtml)
+
+        marker.on('popupopen', (e: any) => {
+          const link = e.popup
+            .getElement()
+            ?.querySelector(`[data-shop-detail-link="${shop.id}"]`)
+          link?.addEventListener('click', (evt: MouseEvent) => {
+            evt.preventDefault()
+            router.push(`/shops/${shop.id}`)
+          })
+        })
 
         marker.bindTooltip(shop.name, {
           permanent: true,

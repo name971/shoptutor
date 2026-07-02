@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Shop } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
@@ -35,6 +35,26 @@ const SORT_OPTIONS = [
 
 const PAGE_SIZE = 20
 
+const FILTERS_STORAGE_KEY = 'shoptutor_home_filters'
+
+function loadSavedFilters(): {
+  prefectureFilter: string | null
+  expandedRegion: string | null
+  selectedFormat: string | null
+  wpnOnly: boolean
+  meisterOnly: boolean
+  searchQuery: string
+  visibleCount: number
+} | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(FILTERS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
@@ -46,8 +66,26 @@ export default function HomePage() {
   const [wpnOnly, setWpnOnly] = useState(false)
   const [meisterOnly, setMeisterOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filtersRestored, setFiltersRestored] = useState(false)
   const [loading, setLoading] = useState(true)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const isFirstFilterRun = useRef(true)
+
+  // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
+  // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
+  useEffect(() => {
+    const saved = loadSavedFilters()
+    if (saved) {
+      setPrefectureFilter(saved.prefectureFilter ?? null)
+      setExpandedRegion(saved.expandedRegion ?? null)
+      setSelectedFormat(saved.selectedFormat ?? null)
+      setWpnOnly(saved.wpnOnly ?? false)
+      setMeisterOnly(saved.meisterOnly ?? false)
+      setSearchQuery(saved.searchQuery ?? '')
+      setVisibleCount(saved.visibleCount ?? PAGE_SIZE)
+    }
+    setFiltersRestored(true)
+  }, [])
 
   useEffect(() => {
     const fetchShops = async () => {
@@ -134,8 +172,35 @@ export default function HomePage() {
     })
 
     setFiltered(result)
-    setVisibleCount(PAGE_SIZE)
+    if (shops.length === 0) {
+      // データ取得前の初回パスでは何もしない
+    } else if (isFirstFilterRun.current) {
+      // データ取得後の最初のパスでは、復元したvisibleCountを維持する
+      isFirstFilterRun.current = false
+    } else {
+      setVisibleCount(PAGE_SIZE)
+    }
   }, [shops, prefectureFilter, expandedRegion, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
+
+  useEffect(() => {
+    if (!filtersRestored) return
+    try {
+      window.sessionStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({
+          prefectureFilter,
+          expandedRegion,
+          selectedFormat,
+          wpnOnly,
+          meisterOnly,
+          searchQuery,
+          visibleCount,
+        })
+      )
+    } catch {
+      // 保存失敗は無視
+    }
+  }, [filtersRestored, prefectureFilter, expandedRegion, selectedFormat, wpnOnly, meisterOnly, searchQuery, visibleCount])
 
   const visibleShops = filtered.slice(0, visibleCount)
   const formatLabel = FORMATS.find((f) => f.key === selectedFormat)?.label

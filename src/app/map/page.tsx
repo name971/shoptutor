@@ -54,18 +54,31 @@ export default function MapPage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
   const [filtered, setFiltered] = useState<Shop[]>([])
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(
-    () => loadSavedFilters()?.selectedFormat ?? null
-  )
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [selectedSort, setSelectedSort] = useState('recommended')
-  const [wpnOnly, setWpnOnly] = useState(() => loadSavedFilters()?.wpnOnly ?? false)
-  const [meisterOnly, setMeisterOnly] = useState(() => loadSavedFilters()?.meisterOnly ?? false)
-  const [searchQuery, setSearchQuery] = useState(() => loadSavedFilters()?.searchQuery ?? '')
+  const [wpnOnly, setWpnOnly] = useState(false)
+  const [meisterOnly, setMeisterOnly] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filtersRestored, setFiltersRestored] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
 
+  // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
+  // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
   useEffect(() => {
+    const saved = loadSavedFilters()
+    if (saved) {
+      setSelectedFormat(saved.selectedFormat ?? null)
+      setWpnOnly(saved.wpnOnly ?? false)
+      setMeisterOnly(saved.meisterOnly ?? false)
+      setSearchQuery(saved.searchQuery ?? '')
+    }
+    setFiltersRestored(true)
+  }, [])
+
+  useEffect(() => {
+    if (!filtersRestored) return
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
@@ -74,7 +87,7 @@ export default function MapPage() {
     } catch {
       // 保存失敗は無視
     }
-  }, [selectedFormat, wpnOnly, meisterOnly, searchQuery])
+  }, [filtersRestored, selectedFormat, wpnOnly, meisterOnly, searchQuery])
 
   useEffect(() => {
     const fetchShops = async () => {

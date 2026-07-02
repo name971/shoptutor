@@ -1,7 +1,6 @@
 import { Shop } from '@/types'
 import ShopBadges from '@/components/ui/ShopBadges'
 import StarRating from '@/components/ui/StarRating'
-import Link from 'next/link'
 
 type Props = {
   shop: Shop
@@ -15,12 +14,14 @@ export default function ShopPopup({ shop }: Props) {
       <ShopBadges shop={shop} size="sm" />
       <div className="flex items-center justify-between mt-2">
         <StarRating value={shop.avg_total} size="sm" />
-        <Link
+        {/* renderToStringで静的HTML化されるため、next/linkではなくdata属性でSPA遷移をJS側から後付けする */}
+        <a
           href={`/shops/${shop.id}`}
+          data-shop-detail-link={shop.id}
           className="text-xs text-blue-600 hover:underline"
         >
           詳細 →
-        </Link>
+        </a>
       </div>
       <div className="text-xs text-gray-400 mt-1">
         週イベント{shop.weekly_event_count}回
