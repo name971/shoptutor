@@ -15,6 +15,19 @@ const TABS = [
   { key: 'events', label: '今週のイベント' },
 ] as const
 
+const FORMATS = [
+  { key: 'commander', label: 'コマンダー' },
+  { key: 'standard',  label: 'スタンダード' },
+  { key: 'modern',    label: 'モダン' },
+  { key: 'pioneer',   label: 'パイオニア' },
+  { key: 'legacy',    label: 'レガシー' },
+  { key: 'limited',   label: 'リミテッド' },
+  { key: 'other',     label: 'その他' },
+]
+
+const FORMAT_FILTER_STORAGE_KEY = 'favorites-event-format-filter'
+const PAGE_SIZE = 10
+
 export default function FavoritesPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
@@ -22,6 +35,30 @@ export default function FavoritesPage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [events, setEvents] = useState<FavoriteEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedFormats, setSelectedFormats] = useState<Set<string>>(new Set())
+  const [visibleEventCount, setVisibleEventCount] = useState(PAGE_SIZE)
+
+  useEffect(() => {
+    const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
+    if (saved) {
+      setSelectedFormats(new Set(JSON.parse(saved)))
+    }
+  }, [])
+
+  const toggleFormat = (format: string) => {
+    setSelectedFormats((prev) => {
+      const next = new Set(prev)
+      if (next.has(format)) next.delete(format)
+      else next.add(format)
+      localStorage.setItem(FORMAT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(next)))
+      return next
+    })
+    setVisibleEventCount(PAGE_SIZE)
+  }
+
+  const filteredEvents =
+    selectedFormats.size === 0 ? events : events.filter((e) => selectedFormats.has(e.format))
+  const visibleEvents = filteredEvents.slice(0, visibleEventCount)
 
   useEffect(() => {
     const load = async () => {
@@ -114,25 +151,55 @@ export default function FavoritesPage() {
         ) : (
           <>
             <EventNotice />
-            {events.length === 0 ? (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {FORMATS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => toggleFormat(f.key)}
+                  className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
+                    selectedFormats.has(f.key)
+                      ? 'bg-blue-50 border-blue-400 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {filteredEvents.length === 0 ? (
               <div className="text-center text-gray-400 text-sm py-8">
-                今週のイベントはありません
+                {events.length === 0
+                  ? '今週のイベントはありません'
+                  : '該当するフォーマットのイベントはありません'}
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
-                {events.map((event) => (
-                  <div key={event.id} className="bg-white rounded-xl border p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-sm font-medium truncate">{event.shops?.name}</div>
-                      <FormatBadge format={event.format} size="sm" />
+              <>
+                <div className="flex flex-col gap-2">
+                  {visibleEvents.map((event) => (
+                    <div key={event.id} className="bg-white rounded-xl border p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-sm font-medium truncate">{event.shops?.name}</div>
+                        <FormatBadge format={event.format} size="sm" />
+                      </div>
+                      <div className="text-xs text-gray-500 flex items-center justify-between gap-2">
+                        <span className="truncate flex-1">{event.title}</span>
+                        <span className="text-gray-400 whitespace-nowrap">
+                          {event.held_at}
+                          {event.start_time && ` ${event.start_time}〜`}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center justify-between gap-2">
-                      <span className="truncate flex-1">{event.title}</span>
-                      <span className="text-gray-400 whitespace-nowrap">{event.held_at}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                {filteredEvents.length > visibleEventCount && (
+                  <button
+                    onClick={() => setVisibleEventCount((v) => v + PAGE_SIZE)}
+                    className="w-full text-center text-xs text-blue-600 hover:underline mt-2"
+                  >
+                    もっと見る
+                  </button>
+                )}
+              </>
             )}
           </>
         )}

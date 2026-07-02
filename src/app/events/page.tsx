@@ -15,6 +15,7 @@ const FORMATS = [
   { key: 'pioneer',   label: 'パイオニア' },
   { key: 'legacy',    label: 'レガシー' },
   { key: 'limited',   label: 'リミテッド' },
+  { key: 'other',     label: 'その他' },
 ]
 
 const RADIUS_OPTIONS = [
