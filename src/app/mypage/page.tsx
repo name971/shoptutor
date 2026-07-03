@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { FORMAT_LABELS, FORMAT_COLORS, ReviewWithLikes } from '@/types'
+import { FORMAT_LABELS, FORMAT_COLORS, SUB_FORMAT_MAX, ReviewWithLikes } from '@/types'
 
 const NAME_CHANGE_INTERVAL_DAYS = 30
 const PAGE_SIZE = 3
@@ -25,7 +25,8 @@ export default function MyPage() {
   const [originalName, setOriginalName] = useState('')
   const [name, setName] = useState('')
   const [nameChangedAt, setNameChangedAt] = useState<string | null>(null)
-  const [formats, setFormats] = useState<string[]>([])
+  const [mainFormat, setMainFormat] = useState<string | null>(null)
+  const [subFormats, setSubFormats] = useState<string[]>([])
   const [reviews, setReviews] = useState<MyReview[]>([])
   const [photos, setPhotos] = useState<MyPhoto[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,14 +53,15 @@ export default function MyPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('name, main_formats, name_changed_at')
+        .select('name, main_format, sub_formats, name_changed_at')
         .eq('id', user.id)
         .single()
 
       if (profile) {
         setOriginalName(profile.name ?? '')
         setName(profile.name ?? '')
-        setFormats(profile.main_formats ?? [])
+        setMainFormat(profile.main_format ?? null)
+        setSubFormats(profile.sub_formats ?? [])
         setNameChangedAt(profile.name_changed_at)
       }
 
@@ -110,18 +112,26 @@ export default function MyPage() {
   const nameChangeLocked =
     name.trim() !== originalName && !!nameChangeAvailableAt && nameChangeAvailableAt.getTime() > Date.now()
 
-  const toggleFormat = (format: string) => {
-    setFormats((prev) =>
-      prev.includes(format) ? prev.filter((f) => f !== format) : [...prev, format]
-    )
+  const selectMain = (format: string) => {
+    setMainFormat(format)
+    setSubFormats((prev) => prev.filter((f) => f !== format))
+  }
+
+  const toggleSub = (format: string) => {
+    if (format === mainFormat) return
+    setSubFormats((prev) => {
+      if (prev.includes(format)) return prev.filter((f) => f !== format)
+      if (prev.length >= SUB_FORMAT_MAX) return prev
+      return [...prev, format]
+    })
   }
 
   const handleSave = async () => {
     setError('')
     setMessage('')
 
-    if (formats.length === 0) {
-      setError('フォーマットは1つ以上選択してください')
+    if (!mainFormat) {
+      setError('メインフォーマットを1つ選択してください')
       return
     }
     if (name.trim().length === 0) {
@@ -139,7 +149,7 @@ export default function MyPage() {
     const supabase = createClient()
     const nameChanged = name.trim() !== originalName
 
-    const payload: Record<string, unknown> = { main_formats: formats }
+    const payload: Record<string, unknown> = { main_format: mainFormat, sub_formats: subFormats }
     if (nameChanged) {
       payload.name = name.trim()
       payload.name_changed_at = new Date().toISOString()
@@ -271,16 +281,43 @@ export default function MyPage() {
             </div>
 
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">よく遊ぶフォーマット</label>
+              <label className="text-xs text-gray-500 mb-1 block">メインフォーマット（1つ）</label>
               <div className="grid grid-cols-2 gap-2">
                 {Object.keys(FORMAT_LABELS).map((format) => {
-                  const isSelected = formats.includes(format)
+                  const isSelected = mainFormat === format
                   const colors = FORMAT_COLORS[format]
                   return (
                     <button
                       key={format}
-                      onClick={() => toggleFormat(format)}
+                      onClick={() => selectMain(format)}
                       className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        isSelected
+                          ? `${colors.bg} ${colors.text} border-current`
+                          : 'bg-white border-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {FORMAT_LABELS[format]}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">
+                サブフォーマット（最大{SUB_FORMAT_MAX}つ・任意）
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(FORMAT_LABELS).filter((f) => f !== mainFormat).map((format) => {
+                  const isSelected = subFormats.includes(format)
+                  const colors = FORMAT_COLORS[format]
+                  const disabled = !isSelected && subFormats.length >= SUB_FORMAT_MAX
+                  return (
+                    <button
+                      key={format}
+                      onClick={() => toggleSub(format)}
+                      disabled={disabled}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${
                         isSelected
                           ? `${colors.bg} ${colors.text} border-current`
                           : 'bg-white border-gray-200 text-gray-600'

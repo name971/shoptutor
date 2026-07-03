@@ -35,11 +35,11 @@ export async function proxy(request: NextRequest) {
   if (user && !skipCheck) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('main_formats')
+      .select('main_format')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!profile || !profile.main_formats || profile.main_formats.length === 0) {
+    if (!profile || !profile.main_format) {
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding'
       return NextResponse.redirect(url)

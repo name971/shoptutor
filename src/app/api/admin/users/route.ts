@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   let query = admin
     .from('profiles')
-    .select('id, name, avatar_url, main_formats, created_at')
+    .select('id, name, avatar_url, main_format, sub_formats, created_at')
     .order('created_at', { ascending: false })
     .limit(50)
 

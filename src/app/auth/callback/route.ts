@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, main_formats')
+        .select('id, main_format')
         .eq('id', data.user.id)
         .maybeSingle()
 
@@ -22,12 +22,13 @@ export async function GET(request: Request) {
           id: data.user.id,
           name: meta.full_name ?? meta.name ?? meta.user_name ?? 'ユーザー',
           avatar_url: meta.avatar_url ?? '',
-          main_formats: [],
+          main_format: null,
+          sub_formats: [],
         })
         return NextResponse.redirect(`${origin}/onboarding`)
       }
 
-      if (!profile.main_formats || profile.main_formats.length === 0) {
+      if (!profile.main_format) {
         return NextResponse.redirect(`${origin}/onboarding`)
       }
 

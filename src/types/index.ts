@@ -81,7 +81,8 @@ export type Review = {
   profiles?: {
     name: string
     avatar_url: string
-    main_formats: string[]
+    main_format: string | null
+    sub_formats: string[]
   }
 }
 
@@ -93,9 +94,12 @@ export type Profile = {
   id: string
   name: string
   avatar_url: string
-  main_formats: string[]
+  main_format: string | null
+  sub_formats: string[]
   name_changed_at: string | null
 }
+
+export const SUB_FORMAT_MAX = 2
 
 export const FORMAT_LABELS: Record<string, string> = {
   commander: 'コマンダー',

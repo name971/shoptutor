@@ -56,9 +56,12 @@ export default function ReviewList({ reviews }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const reviewerFormats = (profile: ReviewWithLikes['profiles']) =>
+    profile ? [profile.main_format, ...profile.sub_formats].filter((f): f is string => !!f) : []
+
   const availableFormats = useMemo(() => {
     const set = new Set<string>()
-    reviews.forEach((r) => r.profiles?.main_formats?.forEach((f) => set.add(f)))
+    reviews.forEach((r) => reviewerFormats(r.profiles).forEach((f) => set.add(f)))
     return Object.keys(FORMAT_LABELS).filter((f) => set.has(f))
   }, [reviews])
 
@@ -66,7 +69,7 @@ export default function ReviewList({ reviews }: Props) {
     let result = [...reviews]
 
     if (formatFilter) {
-      result = result.filter((r) => r.profiles?.main_formats?.includes(formatFilter))
+      result = result.filter((r) => reviewerFormats(r.profiles).includes(formatFilter))
     }
 
     result.sort((a, b) => {
@@ -175,7 +178,7 @@ export default function ReviewList({ reviews }: Props) {
                 <div>
                   <div className="text-sm font-medium">{review.profiles?.name ?? '匿名'}</div>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
-                    {review.profiles?.main_formats?.map((f) => (
+                    {reviewerFormats(review.profiles).map((f) => (
                       <FormatBadge key={f} format={f} size="sm" />
                     ))}
                   </div>

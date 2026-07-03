@@ -4,14 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { FORMAT_LABELS, FORMAT_COLORS } from '@/types'
+import { FORMAT_LABELS, FORMAT_COLORS, SUB_FORMAT_MAX } from '@/types'
 
 const SELECTABLE_FORMATS = Object.keys(FORMAT_LABELS)
 
 export default function OnboardingPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
-  const [selected, setSelected] = useState<string[]>([])
+  const [mainFormat, setMainFormat] = useState<string | null>(null)
+  const [subFormats, setSubFormats] = useState<string[]>([])
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -27,15 +28,23 @@ export default function OnboardingPage() {
     })
   }, [router])
 
-  const toggle = (format: string) => {
-    setSelected((prev) =>
-      prev.includes(format) ? prev.filter((f) => f !== format) : [...prev, format]
-    )
+  const selectMain = (format: string) => {
+    setMainFormat(format)
+    setSubFormats((prev) => prev.filter((f) => f !== format))
+  }
+
+  const toggleSub = (format: string) => {
+    if (format === mainFormat) return
+    setSubFormats((prev) => {
+      if (prev.includes(format)) return prev.filter((f) => f !== format)
+      if (prev.length >= SUB_FORMAT_MAX) return prev
+      return [...prev, format]
+    })
   }
 
   const handleSubmit = async () => {
-    if (selected.length === 0) {
-      setError('1つ以上選択してください')
+    if (!mainFormat) {
+      setError('メインフォーマットを1つ選択してください')
       return
     }
     if (!agreedToTerms) {
@@ -57,7 +66,7 @@ export default function OnboardingPage() {
 
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ main_formats: selected, terms_agreed_at: new Date().toISOString() })
+      .update({ main_format: mainFormat, sub_formats: subFormats, terms_agreed_at: new Date().toISOString() })
       .eq('id', user.id)
 
     if (updateError) {
@@ -79,27 +88,57 @@ export default function OnboardingPage() {
           よく遊ぶフォーマットを選んでください
         </h1>
         <p className="mt-2 text-sm text-gray-500 text-center">
-          あとから変更できます。1つ以上選択してください。
+          あとから変更できます。メインを1つ、サブを最大{SUB_FORMAT_MAX}つまで選べます。
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-2">
-          {SELECTABLE_FORMATS.map((format) => {
-            const isSelected = selected.includes(format)
-            const colors = FORMAT_COLORS[format]
-            return (
-              <button
-                key={format}
-                onClick={() => toggle(format)}
-                className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isSelected
-                    ? `${colors.bg} ${colors.text} border-current`
-                    : 'bg-white border-gray-200 text-gray-600'
-                }`}
-              >
-                {FORMAT_LABELS[format]}
-              </button>
-            )
-          })}
+        <div className="mt-6">
+          <div className="text-xs text-gray-500 mb-1.5">メインフォーマット（1つ）</div>
+          <div className="grid grid-cols-2 gap-2">
+            {SELECTABLE_FORMATS.map((format) => {
+              const isSelected = mainFormat === format
+              const colors = FORMAT_COLORS[format]
+              return (
+                <button
+                  key={format}
+                  onClick={() => selectMain(format)}
+                  className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isSelected
+                      ? `${colors.bg} ${colors.text} border-current`
+                      : 'bg-white border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {FORMAT_LABELS[format]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="text-xs text-gray-500 mb-1.5">
+            サブフォーマット（最大{SUB_FORMAT_MAX}つ・任意）
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SELECTABLE_FORMATS.filter((f) => f !== mainFormat).map((format) => {
+              const isSelected = subFormats.includes(format)
+              const colors = FORMAT_COLORS[format]
+              const disabled = !isSelected && subFormats.length >= SUB_FORMAT_MAX
+              return (
+                <button
+                  key={format}
+                  onClick={() => toggleSub(format)}
+                  disabled={disabled}
+                  className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+                    isSelected
+                      ? `${colors.bg} ${colors.text} border-current`
+                      : 'bg-white border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {FORMAT_LABELS[format]}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <label className="mt-6 flex items-start gap-2 text-sm text-gray-600">

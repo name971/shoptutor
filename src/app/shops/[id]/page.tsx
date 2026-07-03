@@ -46,7 +46,7 @@ export default async function ShopDetailPage({ params }: Props) {
 
   const { data: reviewsData } = await supabase
     .from('reviews')
-    .select('*, profiles!reviews_user_id_fkey(name, avatar_url, main_formats), review_likes(count)')
+    .select('*, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)')
     .eq('shop_id', id)
     .eq('is_hidden', false)
     .order('created_at', { ascending: false })
