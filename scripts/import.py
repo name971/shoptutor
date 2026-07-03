@@ -11,7 +11,7 @@ shops.json と events_weekly.json を Supabase にインポートするスクリ
 import json
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from collections import Counter
 from supabase import create_client
 
@@ -46,9 +46,17 @@ def load_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
+# events_weekly.json はスクレイピングラグを吸収するため8日分取得しているが（scrape.py参照）、
+# 「週イベント数」の定義自体は7日間のまま。集計だけ7日分に絞り、events テーブルへのインポートは
+# 8日分すべて行う（イベント一覧・お気に入りタブ等は引き続き8日分見られる）。
+WEEK_DEADLINE = date.today() + timedelta(days=7)
+
 def calc_event_stats(shop_id, events):
-    """店舗のイベント集計を計算"""
-    shop_events = [e for e in events if e["shop_id"] == shop_id]
+    """店舗のイベント集計を計算（週イベント数・フォーマット別は直近7日間のみ）"""
+    shop_events = [
+        e for e in events
+        if e["shop_id"] == shop_id and date.fromisoformat(e["held_at"]) <= WEEK_DEADLINE
+    ]
     fmt_counter = Counter(e["format"] for e in shop_events)
     return {
         "weekly_event_count": len(shop_events),
