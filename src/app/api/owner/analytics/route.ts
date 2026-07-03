@@ -10,17 +10,13 @@ function dowOf(dateStr: string): number {
   return new Date(dateStr).getUTCDay()
 }
 
-function bucketBy<T extends { view_hour: number; view_date: string }>(
-  rows: T[],
-  bucketSize: number,
-  pickBucket: (row: T) => number,
-  pickViewerId: (row: T) => string
-): Set<string>[] {
-  const buckets: Set<string>[] = Array.from({ length: bucketSize }, () => new Set())
-  for (const row of rows) {
-    buckets[pickBucket(row)].add(pickViewerId(row))
+function getOrCreate<K, V>(map: Map<K, V>, key: K, make: () => V): V {
+  let v = map.get(key)
+  if (!v) {
+    v = make()
+    map.set(key, v)
   }
-  return buckets
+  return v
 }
 
 export async function GET() {
@@ -64,18 +60,32 @@ export async function GET() {
     dowTotal[dowOf(row.view_date)].count += n
   }
 
-  // フォーマットごとのユニーク訪問者数（viewer_idは集計にのみ使い、レスポンスには含めない）
-  // mainCountは「そのフォーマットをメインに選んでいる人」の内数（精度の高いシグナル）
+  // フォーマット別・メイン/サブ別・時間帯/曜日別のユニーク訪問者数を1パスで集計する
+  // （viewer_idは集計にのみ使い、レスポンスには含めない）。
   const viewersByFormat = new Map<string, Set<string>>()
   const mainViewersByFormat = new Map<string, Set<string>>()
+  const hourBuckets = new Map<string, { main: Set<string>[]; sub: Set<string>[] }>()
+  const dowBuckets = new Map<string, { main: Set<string>[]; sub: Set<string>[] }>()
+
   for (const row of formats ?? []) {
-    if (!viewersByFormat.has(row.format)) viewersByFormat.set(row.format, new Set())
-    viewersByFormat.get(row.format)!.add(row.viewer_id)
+    getOrCreate(viewersByFormat, row.format, () => new Set()).add(row.viewer_id)
     if (row.is_main) {
-      if (!mainViewersByFormat.has(row.format)) mainViewersByFormat.set(row.format, new Set())
-      mainViewersByFormat.get(row.format)!.add(row.viewer_id)
+      getOrCreate(mainViewersByFormat, row.format, () => new Set()).add(row.viewer_id)
     }
+
+    const hb = getOrCreate(hourBuckets, row.format, () => ({
+      main: Array.from({ length: 24 }, () => new Set<string>()),
+      sub: Array.from({ length: 24 }, () => new Set<string>()),
+    }))
+    ;(row.is_main ? hb.main : hb.sub)[row.view_hour].add(row.viewer_id)
+
+    const db = getOrCreate(dowBuckets, row.format, () => ({
+      main: Array.from({ length: 7 }, () => new Set<string>()),
+      sub: Array.from({ length: 7 }, () => new Set<string>()),
+    }))
+    ;(row.is_main ? db.main : db.sub)[dowOf(row.view_date)].add(row.viewer_id)
   }
+
   const formatCounts = Array.from(viewersByFormat.entries())
     .map(([format, viewers]) => ({
       format,
@@ -84,26 +94,18 @@ export async function GET() {
     }))
     .sort((a, b) => b.main_count - a.main_count || b.count - a.count)
 
-  // フォーマット×時間帯／フォーマット×曜日のユニーク訪問者数。メイン基準・サブ基準を別々に
-  // 集計することで、同じ訪問者が両方の枠に二重計上されるのを避ける。
   const formatHourlyMain: Record<string, { hour: number; count: number }[]> = {}
   const formatHourlySub: Record<string, { hour: number; count: number }[]> = {}
   const formatDowMain: Record<string, { dow: number; count: number }[]> = {}
   const formatDowSub: Record<string, { dow: number; count: number }[]> = {}
   for (const { format } of formatCounts) {
-    const rowsForFormat = (formats ?? []).filter((r) => r.format === format)
-    const mainRows = rowsForFormat.filter((r) => r.is_main)
-    const subRows = rowsForFormat.filter((r) => !r.is_main)
+    const hb = hourBuckets.get(format)!
+    formatHourlyMain[format] = hb.main.map((s, hour) => ({ hour, count: s.size }))
+    formatHourlySub[format] = hb.sub.map((s, hour) => ({ hour, count: s.size }))
 
-    const mainByHour = bucketBy(mainRows, 24, (r) => r.view_hour, (r) => r.viewer_id)
-    const subByHour = bucketBy(subRows, 24, (r) => r.view_hour, (r) => r.viewer_id)
-    formatHourlyMain[format] = mainByHour.map((s, hour) => ({ hour, count: s.size }))
-    formatHourlySub[format] = subByHour.map((s, hour) => ({ hour, count: s.size }))
-
-    const mainByDow = bucketBy(mainRows, 7, (r) => dowOf(r.view_date), (r) => r.viewer_id)
-    const subByDow = bucketBy(subRows, 7, (r) => dowOf(r.view_date), (r) => r.viewer_id)
-    formatDowMain[format] = mainByDow.map((s, dow) => ({ dow, count: s.size }))
-    formatDowSub[format] = subByDow.map((s, dow) => ({ dow, count: s.size }))
+    const db = dowBuckets.get(format)!
+    formatDowMain[format] = db.main.map((s, dow) => ({ dow, count: s.size }))
+    formatDowSub[format] = db.sub.map((s, dow) => ({ dow, count: s.size }))
   }
 
   return NextResponse.json({
