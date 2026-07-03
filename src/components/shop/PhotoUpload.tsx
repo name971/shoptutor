@@ -143,7 +143,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
         onClick={() => inputRef.current?.click()}
         className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
       >
-        📷 写真を選択（あと{remaining}枚まで）
+        📷 写真をアップロード（あと{remaining}枚まで）
       </button>
 
       {files.length > 0 && (

@@ -14,33 +14,18 @@ type FormatCount = {
 type Props = {
   formatCounts: FormatCount[]
   events: Event[]
+  weeklyEventCount: number
 }
 
 const PAGE_SIZE = 10
 
-export default function OfficialEventsSection({ formatCounts, events }: Props) {
+export default function OfficialEventsSection({ formatCounts, events, weeklyEventCount }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const upcomingEvents = useMemo(
     () => events.filter((e) => !isEventPast(e.held_at, e.start_time)),
     [events]
-  )
-
-  // 集計タイルの数値は、DBの週次集計（スクレイピング時点のスナップショット）ではなく
-  // 実際に取得済みの今後のイベント一覧から数え直し、下の一覧と食い違わないようにする
-  const weeklyEventCount = upcomingEvents.length
-  const liveFormatCounts = useMemo(
-    () =>
-      formatCounts
-        .map((f) => ({
-          ...f,
-          count: upcomingEvents.filter((e) =>
-            f.key === 'other' ? OTHER_FORMAT_KEYS.includes(e.format) : e.format === f.key
-          ).length,
-        }))
-        .filter((f) => f.count > 0),
-    [formatCounts, upcomingEvents]
   )
 
   const filteredEvents = selectedFormat
@@ -55,7 +40,7 @@ export default function OfficialEventsSection({ formatCounts, events }: Props) {
     setVisibleCount(PAGE_SIZE)
   }
 
-  if (weeklyEventCount === 0) {
+  if (upcomingEvents.length === 0) {
     return (
       <div className="bg-white rounded-xl border p-3">
         <div className="font-medium text-sm mb-3 flex items-center gap-1">📅 公式イベント情報</div>
@@ -80,7 +65,7 @@ export default function OfficialEventsSection({ formatCounts, events }: Props) {
             {weeklyEventCount}<span className="text-xs text-gray-400">回</span>
           </div>
         </button>
-        {liveFormatCounts.map((f) => (
+        {formatCounts.map((f) => (
           <button
             key={f.key}
             onClick={() => handleSelectFormat(selectedFormat === f.key ? null : f.key)}

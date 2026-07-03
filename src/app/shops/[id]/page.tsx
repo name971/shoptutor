@@ -178,6 +178,7 @@ export default async function ShopDetailPage({ params }: Props) {
         <OfficialEventsSection
           formatCounts={formatCounts}
           events={events ?? []}
+          weeklyEventCount={shop.weekly_event_count}
         />
 
         {/* 店舗写真 */}

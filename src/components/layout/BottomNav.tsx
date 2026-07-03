@@ -26,7 +26,9 @@ export default function BottomNav() {
               isActive ? 'text-blue-600' : 'text-gray-400'
             }`}
           >
-            <span className="text-base leading-none">{tab.icon}</span>
+            <span className={`text-base leading-none ${tab.href === '/favorites' ? 'text-yellow-500' : ''}`}>
+              {tab.icon}
+            </span>
             <span>{tab.label}</span>
           </Link>
         )
