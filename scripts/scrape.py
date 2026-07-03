@@ -1,7 +1,7 @@
 """
 MTG公認店舗 週次スクレイピング
 - 店舗一覧から: 店舗名・住所・緯度経度・WPNプレミアム・ティーチングマイスター
-- イベントページから: 1週間以内のイベント（フォーマット・日時）
+- イベントページから: 8日以内のイベント（フォーマット・日時）
 
 画像srcによる判定:
   icon-store-meister-level.png → WPNプレミアム✅ ティーチングマイスター✅
@@ -15,7 +15,7 @@ MTG公認店舗 週次スクレイピング
 
 出力（リポジトリルートに書き出し）:
   shops.json         - 店舗マスタ（WPN・ティーチングマイスター含む）
-  events_weekly.json - 1週間以内のイベント一覧
+  events_weekly.json - 8日以内のイベント一覧
 """
 
 import requests
@@ -56,7 +56,7 @@ session = requests.Session()
 session.headers.update(HEADERS)
 
 TODAY = datetime.today().date()
-DEADLINE = TODAY + timedelta(days=7)
+DEADLINE = TODAY + timedelta(days=8)
 
 def wait():
     t = random.uniform(1.0, 2.5)
