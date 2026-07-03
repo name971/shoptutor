@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   let query = admin
     .from('shops')
-    .select('id, name, prefecture, status, is_wpn_premium, is_teaching_meister, address, lat, lng')
+    .select('id, name, prefecture, status, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, owner_user_id, address, lat, lng')
     .order('name', { ascending: true })
     .limit(50)
 

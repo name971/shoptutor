@@ -26,12 +26,32 @@ export type Shop = {
   avg_access: number | null
   avg_total: number | null
   view_count: number
+  owner_user_id: string | null
+  is_premium: boolean
+  pr_enabled: boolean
+  business_hours: string | null
+  cover_photo_urls: string[]
+  parking_available: boolean | null
+  parking_note: string | null
 }
 
 // 一覧・地図表示で使うカラムのみに絞った型（店舗詳細ページ専用の5軸平均・other_count等は含まない）
+// is_premiumはPR枠の判定に使うため一覧側にも残す
 export type ShopListItem = Omit<
   Shop,
-  'official_id' | 'status' | 'other_count' | 'avg_stock' | 'avg_price' | 'avg_playspace' | 'avg_staff' | 'avg_access'
+  | 'official_id'
+  | 'status'
+  | 'other_count'
+  | 'avg_stock'
+  | 'avg_price'
+  | 'avg_playspace'
+  | 'avg_staff'
+  | 'avg_access'
+  | 'owner_user_id'
+  | 'business_hours'
+  | 'cover_photo_urls'
+  | 'parking_available'
+  | 'parking_note'
 >
 
 export type Event = {

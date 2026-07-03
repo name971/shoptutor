@@ -14,6 +14,9 @@ export type MapBounds = {
   west: number
 }
 
+const DEFAULT_CENTER: [number, number] = [36.5, 136.0]
+const DEFAULT_ZOOM = 6
+
 // 0 はクラスタリングなし（個別ピン表示）を意味する
 function getClusterRadius(shopCount: number): number {
   if (shopCount <= 20) return 0
@@ -30,9 +33,11 @@ type Props = {
   visibleCount?: number
   onShopSelect?: (shop: ShopListItem) => void
   onBoundsChange?: (bounds: MapBounds) => void
+  focusShop?: ShopListItem | null
+  focusToken?: number
 }
 
-export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsChange }: Props) {
+export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsChange, focusShop, focusToken }: Props) {
   const clusterCountBasis = visibleCount ?? shops.length
   const router = useRouter()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -72,8 +77,8 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
 
       if (cancelled || !mapRef.current || (mapRef.current as any)._leaflet_id) return
 
-      let initialCenter: [number, number] = [36.5, 136.0]
-      let initialZoom = 6
+      let initialCenter: [number, number] = DEFAULT_CENTER
+      let initialZoom = DEFAULT_ZOOM
       try {
         const saved = window.sessionStorage.getItem('shoptutor_map_view')
         if (saved) {
@@ -241,6 +246,14 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
     }
   }, [shops, clusterCountBasis])
 
+  // サイドバー一覧の店舗クリックで、地図をその店舗の位置にズームインする
+  useEffect(() => {
+    if (!focusShop || focusShop.lat === null || focusShop.lng === null) return
+    if (!mapInstanceRef.current) return
+
+    mapInstanceRef.current.flyTo([focusShop.lat, focusShop.lng], 16, { duration: 0.6 })
+  }, [focusShop, focusToken])
+
   const handleLocate = () => {
     if (!mapInstanceRef.current) return
     setLocating(true)
@@ -248,28 +261,54 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
     mapInstanceRef.current.locate({ setView: true, maxZoom: 15 })
   }
 
+  const handleResetView = () => {
+    if (!mapInstanceRef.current) return
+    mapInstanceRef.current.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.6 })
+  }
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapRef} className="w-full h-full" />
 
-      <button
-        onClick={handleLocate}
-        disabled={locating}
-        aria-label="現在地を表示"
-        className="absolute bottom-6 right-3 z-[1000] w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-blue-600 disabled:opacity-50"
-      >
-        {locating ? (
-          <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-        ) : (
+      <div className="absolute bottom-6 right-16 z-[1000] flex flex-col items-center gap-1">
+        <span className="bg-white text-[10px] text-gray-600 px-1.5 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
+          初期表示に戻る
+        </span>
+        <button
+          onClick={handleResetView}
+          aria-label="初期表示に戻る"
+          className="w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-blue-600"
+        >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
           </svg>
-        )}
-      </button>
+        </button>
+      </div>
+
+      <div className="absolute bottom-6 right-3 z-[1000] flex flex-col items-center gap-1">
+        <span className="bg-white text-[10px] text-gray-600 px-1.5 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
+          現在地
+        </span>
+        <button
+          onClick={handleLocate}
+          disabled={locating}
+          aria-label="現在地を表示"
+          className="w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-blue-600 disabled:opacity-50"
+        >
+          {locating ? (
+            <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+          ) : (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {locationError && (
-        <div className="absolute bottom-6 right-16 z-[1000] bg-white text-xs text-red-500 px-2 py-1 rounded-lg shadow-md border border-gray-200 whitespace-nowrap">
+        <div className="absolute bottom-24 right-3 z-[1000] bg-white text-xs text-red-500 px-2 py-1 rounded-lg shadow-md border border-gray-200 whitespace-nowrap">
           {locationError}
         </div>
       )}

@@ -9,6 +9,9 @@ type Shop = {
   status: string
   is_wpn_premium: boolean
   is_teaching_meister: boolean
+  is_premium: boolean
+  pr_enabled: boolean
+  owner_user_id: string | null
   address: string
   lat: number | null
   lng: number | null
@@ -20,6 +23,8 @@ export default function AdminShops() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<Partial<Shop>>({})
+  const [ownerEmail, setOwnerEmail] = useState('')
+  const [editError, setEditError] = useState('')
 
   const load = async (query: string) => {
     setLoading(true)
@@ -49,20 +54,34 @@ export default function AdminShops() {
   const startEdit = (shop: Shop) => {
     setEditingId(shop.id)
     setEditDraft(shop)
+    // 既存オーナーのemailはAPIから取れないため空欄スタート（空欄のままなら変更しない）
+    setOwnerEmail('')
+    setEditError('')
   }
 
   const saveEdit = async () => {
     if (!editingId) return
+    setEditError('')
+
+    const body: Record<string, unknown> = { ...editDraft }
+    // 入力がある時だけオーナー変更を送る。「解除」と明示指定した場合は空文字を送る
+    if (ownerEmail.trim() !== '') {
+      body.owner_email = ownerEmail.trim() === '解除' ? '' : ownerEmail.trim()
+    }
+
     const res = await fetch(`/api/admin/shops/${editingId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editDraft),
+      body: JSON.stringify(body),
     })
     if (res.ok) {
       setShops((prev) =>
         prev.map((s) => (s.id === editingId ? { ...s, ...editDraft } as Shop : s))
       )
       setEditingId(null)
+    } else {
+      const data = await res.json().catch(() => null)
+      setEditError(data?.error ?? '保存に失敗しました')
     }
   }
 
@@ -136,6 +155,26 @@ export default function AdminShops() {
                     />
                     ティーチングマイスター
                   </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={!!editDraft.is_premium}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, is_premium: e.target.checked }))}
+                    />
+                    プレミアム会員（PR枠・オーナーダッシュボード）
+                  </label>
+                  <div>
+                    <input
+                      value={ownerEmail}
+                      onChange={(e) => setOwnerEmail(e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1"
+                      placeholder="オーナーのメールアドレス（変更しない場合は空欄・「解除」で解除）"
+                    />
+                    {shop.owner_user_id && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">現在オーナー設定済み</p>
+                    )}
+                  </div>
+                  {editError && <p className="text-xs text-red-500">{editError}</p>}
                   <div className="flex gap-2">
                     <button onClick={saveEdit} className="flex-1 text-xs bg-blue-600 text-white rounded-lg py-1.5">
                       保存
@@ -148,7 +187,19 @@ export default function AdminShops() {
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{shop.name}</div>
+                    <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                      <span className="truncate">{shop.name}</span>
+                      {shop.is_premium && (
+                        <span className="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                          プレミアム
+                        </span>
+                      )}
+                      {shop.is_premium && !shop.pr_enabled && (
+                        <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                          PR OFF（オーナー設定）
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500">
                       {shop.prefecture} ·{' '}
                       <span className={shop.status === 'active' ? 'text-green-600' : 'text-gray-400'}>

@@ -52,6 +52,9 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true)
   const [selectedShop, setSelectedShop] = useState<ShopListItem | null>(null)
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
+  const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
+
+  const focusOnShop = (shop: ShopListItem) => setFocusTarget({ shop, ts: Date.now() })
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
   // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
@@ -85,7 +88,7 @@ export default function MapPage() {
         supabase
           .from('shops')
           .select(
-            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
           )
           .eq('status', 'active'),
         supabase.from('shop_favorites').select('shop_id'),
@@ -147,17 +150,16 @@ export default function MapPage() {
     setFiltered(result)
   }, [shops, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
 
-  const visibleInList = mapBounds
-    ? filtered.filter(
-        (s) =>
-          s.lat !== null &&
-          s.lng !== null &&
-          s.lat <= mapBounds.north &&
-          s.lat >= mapBounds.south &&
-          s.lng <= mapBounds.east &&
-          s.lng >= mapBounds.west
-      )
-    : filtered
+  const inBounds = (s: ShopListItem) =>
+    !mapBounds ||
+    (s.lat !== null &&
+      s.lng !== null &&
+      s.lat <= mapBounds.north &&
+      s.lat >= mapBounds.south &&
+      s.lng <= mapBounds.east &&
+      s.lng >= mapBounds.west)
+
+  const visibleInList = filtered.filter(inBounds)
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
@@ -231,6 +233,8 @@ export default function MapPage() {
               visibleCount={visibleInList.length}
               onShopSelect={setSelectedShop}
               onBoundsChange={setMapBounds}
+              focusShop={focusTarget?.shop}
+              focusToken={focusTarget?.ts}
             />
           )}
         </div>
@@ -247,7 +251,13 @@ export default function MapPage() {
               <div className="text-center text-gray-400 text-sm py-8">店舗が見つかりませんでした</div>
             ) : (
               visibleInList.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} showPrefecture={false} />
+                <ShopCard
+                  key={shop.id}
+                  shop={shop}
+                  isPr={shop.is_premium && shop.pr_enabled}
+                  showPrefecture={false}
+                  onClick={() => focusOnShop(shop)}
+                />
               ))
             )}
           </div>

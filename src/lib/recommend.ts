@@ -7,6 +7,10 @@ const WEIGHTS = {
   views: 0.1,
 }
 
+// PR（プレミアム）店舗はおすすめ順の並びだけ優遇する。★評価(avg_total)自体は
+// レビューのみに基づく値のままで、このブーストでは一切変更しない。
+const PR_BOOST = 1.25
+
 export function computeRecommendScores(
   shops: ShopListItem[],
   favoriteCounts: Map<string, number>
@@ -41,11 +45,13 @@ export function computeRecommendScores(
     const normalizedEvents = Math.log(1 + shop.weekly_event_count) / maxEvents
     const normalizedViews = Math.log(1 + shop.view_count) / maxViews
 
-    const score =
+    const baseScore =
       WEIGHTS.rating * normalizedRating +
       WEIGHTS.favorites * normalizedFavorites +
       WEIGHTS.events * normalizedEvents +
       WEIGHTS.views * normalizedViews
+
+    const score = shop.is_premium && shop.pr_enabled ? baseScore * PR_BOOST : baseScore
 
     scores.set(shop.id, score)
   })

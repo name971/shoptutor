@@ -83,7 +83,7 @@ export default function HomePage() {
         supabase
           .from('shops')
           .select(
-            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
           )
           .eq('status', 'active'),
         supabase.from('shop_favorites').select('shop_id'),
@@ -352,7 +352,7 @@ export default function HomePage() {
             <>
               <div className="flex flex-col gap-2">
                 {visibleShops.map((shop) => (
-                  <ShopCard key={shop.id} shop={shop} showPrefecture={prefectureFilter === null} />
+                  <ShopCard key={shop.id} shop={shop} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
                 ))}
               </div>
               {filtered.length > visibleCount && (

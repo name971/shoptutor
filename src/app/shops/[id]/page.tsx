@@ -1,12 +1,15 @@
 import { createClient } from '@/lib/supabase'
+import { createClient as createServerSupabase } from '@/lib/supabase-server'
 import { ReviewWithLikes } from '@/types'
 import ShopBadges from '@/components/ui/ShopBadges'
 import ReviewSection from '@/components/shop/ReviewSection'
 import FavoriteButton from '@/components/shop/FavoriteButton'
 import PhotoGallery from '@/components/shop/PhotoGallery'
+import CoverPhotoGrid from '@/components/shop/CoverPhotoGrid'
 import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
 import { jstDateKey } from '@/lib/eventTime'
+import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
 
 type Props = {
@@ -26,6 +29,12 @@ export default async function ShopDetailPage({ params }: Props) {
   if (!shop) notFound()
 
   supabase.rpc('increment_shop_view', { shop_id_input: id }).then(() => {})
+
+  // 訪問者分析用の記録（ログイン済みならフォーマットも記録されるため、cookie付きクライアントで呼ぶ）
+  createServerSupabase()
+    .then((serverClient) => serverClient.rpc('record_shop_view', { shop_id_input: id }))
+    .then(() => {})
+    .catch(() => {})
 
   const { data: events } = await supabase
     .from('events')
@@ -92,27 +101,33 @@ export default async function ShopDetailPage({ params }: Props) {
         <ShopBadges shop={shop} />
 
         {/* 基本情報 */}
-        <div className="bg-white rounded-xl border p-3 flex items-start justify-between gap-2">
-          <div className="flex flex-col gap-2 flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-gray-900 leading-snug">{shop.name}</h1>
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span>📍</span>
-              <span>{shop.address || shop.prefecture}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span>🔗</span>
-              <a
-                href={`https://mtg-jp.com/events/shop/${shop.official_id}/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                公式ページ（mtg-jp.com）
-              </a>
-            </div>
+        <div className="bg-white rounded-xl border p-3 flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-xl font-bold text-gray-900 leading-snug flex-1 min-w-0">{shop.name}</h1>
+            <FavoriteButton shopId={shop.id} />
           </div>
-          <FavoriteButton shopId={shop.id} />
+
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <span>📍</span>
+            <span>{shop.address || shop.prefecture}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span>🔗</span>
+            <a
+              href={`https://mtg-jp.com/events/shop/${shop.official_id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              公式ページ（mtg-jp.com）
+            </a>
+          </div>
         </div>
+
+        {/* 店舗写真（プレミアム店舗の公式写真・最大3枚） */}
+        {shop.cover_photo_urls && shop.cover_photo_urls.length > 0 && (
+          <CoverPhotoGrid urls={shop.cover_photo_urls} alt={shop.name} />
+        )}
 
         {/* レビュー概要・一覧 */}
         <ReviewSection
@@ -122,6 +137,42 @@ export default async function ShopDetailPage({ params }: Props) {
           ratingAverages={RATING_LABELS}
           reviews={reviews}
         />
+
+        {/* 営業時間・駐車場（プレミアム店舗のオーナー設定情報） */}
+        {(shop.business_hours || shop.parking_available !== null) && (
+          <div className="bg-white rounded-xl border p-3 flex flex-col gap-3">
+            {shop.business_hours && (
+              <div className="flex items-start gap-2 text-sm text-gray-700">
+                <span>🕐</span>
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 mb-1">営業時間</div>
+                  <div className="flex flex-col gap-0.5">
+                    {summarizeBusinessHours(parseBusinessHours(shop.business_hours)).map((g) => (
+                      <div key={g.label} className="flex gap-2">
+                        <span className="text-gray-500 w-14 flex-shrink-0">{g.label}</span>
+                        <span>{g.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {shop.parking_available !== null && (
+              <div className="flex items-start gap-2 text-sm text-gray-700">
+                <span>🅿️</span>
+                <div>
+                  <div className="text-xs text-gray-500 mb-0.5">駐車場</div>
+                  <div>
+                    {shop.parking_available ? 'あり' : 'なし'}
+                    {shop.parking_available && shop.parking_note && (
+                      <span className="text-gray-500">（{shop.parking_note}）</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 公式イベント情報 */}
         <OfficialEventsSection
