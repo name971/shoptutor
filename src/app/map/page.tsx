@@ -53,8 +53,12 @@ export default function MapPage() {
   const [selectedShop, setSelectedShop] = useState<ShopListItem | null>(null)
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
+  const [mobileView, setMobileView] = useState<'map' | 'list'>('map')
 
-  const focusOnShop = (shop: ShopListItem) => setFocusTarget({ shop, ts: Date.now() })
+  const focusOnShop = (shop: ShopListItem) => {
+    setFocusTarget({ shop, ts: Date.now() })
+    setMobileView('map')
+  }
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
   // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
@@ -223,10 +227,30 @@ export default function MapPage() {
         </select>
       </div>
 
+      {/* スマホ用：地図／リスト切り替えタブ */}
+      <div className="flex md:hidden border-b bg-white">
+        <button
+          onClick={() => setMobileView('map')}
+          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            mobileView === 'map' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'
+          }`}
+        >
+          地図
+        </button>
+        <button
+          onClick={() => setMobileView('list')}
+          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            mobileView === 'list' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'
+          }`}
+        >
+          リスト（{visibleInList.length}）
+        </button>
+      </div>
+
       {/* マップ＋リスト */}
       <div className="flex-1 flex overflow-hidden">
         {/* マップ */}
-        <div className="flex-1 relative">
+        <div className={`flex-1 relative ${mobileView === 'list' ? 'hidden md:block' : ''}`}>
           {!loading && (
             <ShopMap
               shops={filtered}
@@ -240,7 +264,11 @@ export default function MapPage() {
         </div>
 
         {/* 店舗リスト */}
-        <div className="w-80 border-l bg-gray-50 overflow-y-auto">
+        <div
+          className={`w-full md:w-80 border-l bg-gray-50 overflow-y-auto ${
+            mobileView === 'map' ? 'hidden md:block' : ''
+          }`}
+        >
           <div className="px-3 py-2 text-xs text-gray-500 border-b bg-white">
             {visibleInList.length}件表示（表示中の地図範囲）
           </div>
