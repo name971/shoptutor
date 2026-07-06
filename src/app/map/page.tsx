@@ -166,7 +166,7 @@ export default function MapPage() {
   const visibleInList = filtered.filter(inBounds)
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="h-[calc(100dvh-3.5rem)] flex flex-col">
       {/* ヘッダー */}
       <div className="bg-white border-b px-4 py-2 flex items-center gap-3 z-10">
         <div className="font-bold text-base text-gray-800">地図</div>
