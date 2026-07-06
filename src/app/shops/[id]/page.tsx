@@ -20,11 +20,31 @@ export default async function ShopDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = createClient()
 
-  const { data: shop } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('id', id)
-    .single()
+  // 店舗自体はshopがnullならnotFound()するため単独で先に取得し、
+  // それ以外（イベント・レビュー・写真）はidのみに依存するので並列に取得する
+  const [{ data: shop }, { data: events }, { data: reviewsData }, { data: photosData }] =
+    await Promise.all([
+      supabase.from('shops').select('*').eq('id', id).single(),
+      supabase
+        .from('events')
+        .select('*')
+        .eq('shop_id', id)
+        .gte('held_at', jstDateKey())
+        .order('held_at', { ascending: true })
+        .order('start_time', { ascending: true, nullsFirst: false }),
+      supabase
+        .from('reviews')
+        .select('*, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)')
+        .eq('shop_id', id)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('shop_photos')
+        .select('id, url, user_id, photo_likes(count)')
+        .eq('shop_id', id)
+        .eq('is_deleted', false),
+    ])
 
   if (!shop) notFound()
 
@@ -36,32 +56,10 @@ export default async function ShopDetailPage({ params }: Props) {
     .then(() => {})
     .catch(() => {})
 
-  const { data: events } = await supabase
-    .from('events')
-    .select('*')
-    .eq('shop_id', id)
-    .gte('held_at', jstDateKey())
-    .order('held_at', { ascending: true })
-    .order('start_time', { ascending: true, nullsFirst: false })
-
-  const { data: reviewsData } = await supabase
-    .from('reviews')
-    .select('*, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)')
-    .eq('shop_id', id)
-    .eq('is_hidden', false)
-    .order('created_at', { ascending: false })
-    .limit(10)
-
   const reviews: ReviewWithLikes[] = (reviewsData ?? []).map((r: any) => ({
     ...r,
     like_count: r.review_likes?.[0]?.count ?? 0,
   }))
-
-  const { data: photosData } = await supabase
-    .from('shop_photos')
-    .select('id, url, user_id, photo_likes(count)')
-    .eq('shop_id', id)
-    .eq('is_deleted', false)
 
   const photos = (photosData ?? []).map((p: any) => ({
     id: p.id,
