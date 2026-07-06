@@ -24,17 +24,25 @@ export default async function ShopDetailPage({ params }: Props) {
   // それ以外（イベント・レビュー・写真）はidのみに依存するので並列に取得する
   const [{ data: shop }, { data: events }, { data: reviewsData }, { data: photosData }] =
     await Promise.all([
-      supabase.from('shops').select('*').eq('id', id).single(),
+      supabase
+        .from('shops')
+        .select(
+          'id, official_id, name, address, prefecture, is_wpn_premium, is_teaching_meister, first_listed_at, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, other_count, review_count, avg_stock, avg_price, avg_playspace, avg_staff, avg_access, avg_total, weekly_event_count, cover_photo_urls, business_hours, parking_available, parking_note'
+        )
+        .eq('id', id)
+        .single(),
       supabase
         .from('events')
-        .select('*')
+        .select('id, shop_id, title, format, format_raw, held_at, start_time, prefecture')
         .eq('shop_id', id)
         .gte('held_at', jstDateKey())
         .order('held_at', { ascending: true })
         .order('start_time', { ascending: true, nullsFirst: false }),
       supabase
         .from('reviews')
-        .select('*, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)')
+        .select(
+          'id, shop_id, user_id, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, body, is_edited, created_at, updated_at, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)'
+        )
         .eq('shop_id', id)
         .eq('is_hidden', false)
         .order('created_at', { ascending: false })

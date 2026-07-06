@@ -1,7 +1,9 @@
-import { ShopListItem } from '@/types'
-
 type Props = {
-  shop: ShopListItem
+  shop: {
+    first_listed_at: string
+    is_wpn_premium: boolean
+    is_teaching_meister: boolean
+  }
   size?: 'sm' | 'md'
   showNew?: boolean
   showWpn?: boolean
