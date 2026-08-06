@@ -12,6 +12,26 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "start", "--", "-p", "3001"],
       "port": 3001
+    },
+    {
+      "name": "mtg-art-quiz",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:/Users/Sasaki/mtg-art-quiz"],
+      "port": 8123
+    },
+    {
+      "name": "jp-mtgstocks",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\Sasaki\\jp-mtgstocks && npm run dev"],
+      "port": 3241,
+      "autoPort": true
+    },
+    {
+      "name": "colorpie-diagnosis",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\Sasaki\\colorpie-diagnosis && npm run dev -- -p 3242"],
+      "port": 3242,
+      "autoPort": true
     }
   ]
 }

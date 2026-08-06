@@ -35,6 +35,12 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/import.py
 
+      - name: Clean up old visitor analytics data
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/cleanup_analytics.py
+
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
