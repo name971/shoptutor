@@ -77,6 +77,17 @@
     "status": "active"
   },
   {
+    "official_id": "0013956",
+    "name": "晴れる屋川崎店",
+    "address": "川崎市川崎区小川町15-13 川崎トーセイビル6階",
+    "prefecture": "神奈川県",
+    "lat": 35.52772,
+    "lng": 139.69975,
+    "is_wpn_premium": true,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0007398",
     "name": "スポーツカード＆カードゲームショップMINT横浜店",
     "address": "横浜市西区高島2丁目19-12 マルイシティ横浜7F",
@@ -275,17 +286,6 @@
     "status": "active"
   },
   {
-    "official_id": "0013956",
-    "name": "晴れる屋川崎店",
-    "address": "川崎市川崎区小川町15-13 川崎トーセイビル6階",
-    "prefecture": "神奈川県",
-    "lat": 35.52772,
-    "lng": 139.69975,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0009388",
     "name": "カードボックス名張店",
     "address": "名張市夏見3303",
@@ -314,6 +314,17 @@
     "prefecture": "大阪府",
     "lat": 34.663046,
     "lng": 135.503232,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0010086",
+    "name": "BLACK FROG",
+    "address": "大阪市浪速区日本橋4丁目9-22 リファインビル5F",
+    "prefecture": "大阪府",
+    "lat": 34.66085,
+    "lng": 135.50636,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -429,6 +440,17 @@
     "status": "active"
   },
   {
+    "official_id": "0017503",
+    "name": "晴れる屋高崎店",
+    "address": "高崎市問屋町2丁目10-4 糀屋第一ビル 201",
+    "prefecture": "群馬県",
+    "lat": 36.34987,
+    "lng": 139.01138,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0010064",
     "name": "Booksながしま",
     "address": "高崎市箕郷町生原589-4",
@@ -457,6 +479,17 @@
     "prefecture": "千葉県",
     "lat": 35.612061,
     "lng": 140.115933,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0017081",
+    "name": "カードボックス船橋駅前店",
+    "address": "船橋市本町4丁目2番地17号",
+    "prefecture": "千葉県",
+    "lat": 35.700936,
+    "lng": 139.986238,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -497,10 +530,10 @@
   {
     "official_id": "0012418",
     "name": "晴れる屋秋葉原店",
-    "address": "千代田区外神田1-14-1 宝田中央通りビル8F",
+    "address": "千代田区外神田2-5 ミカサビル 2F～5F",
     "prefecture": "東京都",
-    "lat": 35.69834,
-    "lng": 139.7715,
+    "lat": 35.6979,
+    "lng": 139.7704,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -627,6 +660,17 @@
     "status": "active"
   },
   {
+    "official_id": "0012834",
+    "name": "晴れる屋横浜店",
+    "address": "横浜市神奈川区鶴屋町1-2-4 神谷ビル2F",
+    "prefecture": "神奈川県",
+    "lat": 35.46974,
+    "lng": 139.62433,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0018104",
     "name": "TSUTAYA Trading Card 平塚",
     "address": "平塚市天沼10-1 ららぽーと湘南平塚3階",
@@ -671,12 +715,34 @@
     "status": "active"
   },
   {
+    "official_id": "0020506",
+    "name": "晴れる屋長野店",
+    "address": "長野市高田1758番地 1F-区画番号120　MEGAドン・キホーテ 長野店",
+    "prefecture": "長野県",
+    "lat": 36.642239,
+    "lng": 138.215937,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0005791",
     "name": "TCGショップMAG",
     "address": "飯田市座光寺3901-1",
     "prefecture": "長野県",
     "lat": 35.52936,
     "lng": 137.85953,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0016854",
+    "name": "カードショップすずのね",
+    "address": "塩尻市広丘原新田215",
+    "prefecture": "長野県",
+    "lat": 36.151,
+    "lng": 137.9458,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -770,12 +836,34 @@
     "status": "active"
   },
   {
+    "official_id": "0007234",
+    "name": "竜星の嵐名古屋店",
+    "address": "名古屋市中村区椿町21-5 桜木ビル3F",
+    "prefecture": "愛知県",
+    "lat": 35.1679,
+    "lng": 136.87931,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0016636",
     "name": "スポーツカード＆カードゲームショップMINT 名古屋店",
     "address": "名古屋市中区栄3丁目18-1 ナディアパーク ビジネスセンタービル 6F",
     "prefecture": "愛知県",
     "lat": 35.16571,
     "lng": 136.90588,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0013774",
+    "name": "晴れる屋大須店",
+    "address": "名古屋市中区大須4丁目11-5",
+    "prefecture": "愛知県",
+    "lat": 35.15839,
+    "lng": 136.9063,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -820,6 +908,28 @@
     "prefecture": "滋賀県",
     "lat": 35.12423,
     "lng": 135.91874,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0017586",
+    "name": "カードショップLight",
+    "address": "草津市西草津1丁目7-40",
+    "prefecture": "滋賀県",
+    "lat": 35.019061,
+    "lng": 135.955255,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0018565",
+    "name": "晴れる屋京都店",
+    "address": "京都市下京区七条通新町路東入る西堺町149-14 サザン京都駅前ビル 6F B",
+    "prefecture": "京都府",
+    "lat": 34.989122,
+    "lng": 135.757555,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -926,10 +1036,10 @@
   {
     "official_id": "0007850",
     "name": "ジュークボックス",
-    "address": "堺市北区蔵前町1-7-11 金岡Eビル101B",
+    "address": "堺市北区長曽根町735-3 新金岡ビル3F",
     "prefecture": "大阪府",
-    "lat": 34.57489,
-    "lng": 135.51038,
+    "lat": 34.5656,
+    "lng": 135.5116,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -1018,6 +1128,17 @@
     "prefecture": "香川県",
     "lat": 34.31305,
     "lng": 134.03742,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0018548",
+    "name": "TSUTAYA南国店",
+    "address": "南国市篠原194-1",
+    "prefecture": "高知県",
+    "lat": 33.568151,
+    "lng": 133.6348431,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -1475,7 +1596,7 @@
   },
   {
     "official_id": "0011279",
-    "name": "シーガル気仙沼店",
+    "name": "トレカのフジヤ気仙沼店",
     "address": "気仙沼市田中前3-7-10",
     "prefecture": "宮城県",
     "lat": 38.89071,
@@ -1760,17 +1881,6 @@
     "status": "active"
   },
   {
-    "official_id": "0017503",
-    "name": "晴れる屋高崎店",
-    "address": "高崎市問屋町2丁目10-4 糀屋第一ビル 201",
-    "prefecture": "群馬県",
-    "lat": 36.34987,
-    "lng": 139.01138,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0007448",
     "name": "コミかる堂前橋店",
     "address": "前橋市荒牧町1-10-15",
@@ -1991,17 +2101,6 @@
     "status": "active"
   },
   {
-    "official_id": "0013339",
-    "name": "TSUTAYA狭山店",
-    "address": "狭山市広瀬1丁目6-16",
-    "prefecture": "埼玉県",
-    "lat": 35.8578,
-    "lng": 139.39378,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0013137",
     "name": "TSUTAYA嵐山店",
     "address": "比企郡嵐山町平沢土地区画整理内31街区10",
@@ -2173,17 +2272,6 @@
     "prefecture": "千葉県",
     "lat": 35.67999,
     "lng": 139.90543,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0017081",
-    "name": "カードボックス船橋駅前店",
-    "address": "船橋市本町4丁目2番地17号",
-    "prefecture": "千葉県",
-    "lat": 35.700936,
-    "lng": 139.986238,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3113,17 +3201,6 @@
     "status": "active"
   },
   {
-    "official_id": "0012834",
-    "name": "晴れる屋横浜店",
-    "address": "横浜市神奈川区鶴屋町1-2-4 神谷ビル2F",
-    "prefecture": "神奈川県",
-    "lat": 35.46974,
-    "lng": 139.62433,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0006589",
     "name": "マルチメディアステーションゼロワン綱島店",
     "address": "横浜市港北区綱島西1-11-5 マルエスビル2F",
@@ -3246,7 +3323,7 @@
   },
   {
     "official_id": "0013578",
-    "name": "カードショップ デュエルガルド イオン長岡店",
+    "name": "JABUROⅡ",
     "address": "長岡市古正寺1-249-1 イオン長岡店3階",
     "prefecture": "新潟県",
     "lat": 37.45435,
@@ -3262,17 +3339,6 @@
     "prefecture": "新潟県",
     "lat": 37.37046,
     "lng": 138.57733,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0005745",
-    "name": "カードベース ジャブロー",
-    "address": "新潟市中央区上近江4-12-20 DeKKY401 B1F",
-    "prefecture": "新潟県",
-    "lat": 37.89854,
-    "lng": 139.02963,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3295,17 +3361,6 @@
     "prefecture": "新潟県",
     "lat": 37.62981,
     "lng": 138.96071,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0005628",
-    "name": "デュエルガルド中央町店",
-    "address": "新発田市中央町2-1-14 駅前中央商店街通り上野ビル1F",
-    "prefecture": "新潟県",
-    "lat": 37.94711,
-    "lng": 139.32881,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3350,17 +3405,6 @@
     "prefecture": "山梨県",
     "lat": 35.608594,
     "lng": 138.541739,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0020506",
-    "name": "晴れる屋長野店",
-    "address": "長野市高田1758番地 1F-区画番号120　MEGAドン・キホーテ 長野店",
-    "prefecture": "長野県",
-    "lat": 36.642239,
-    "lng": 138.215937,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3482,17 +3526,6 @@
     "prefecture": "長野県",
     "lat": 35.51621,
     "lng": 137.82113,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0016854",
-    "name": "TCG SHOP Suzunone",
-    "address": "塩尻市広丘原新田215-16 信越報知ビル2F",
-    "prefecture": "長野県",
-    "lat": 36.1485369024956,
-    "lng": 137.94660849518712,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3905,34 +3938,12 @@
     "status": "active"
   },
   {
-    "official_id": "0014455",
-    "name": "Meta Games",
-    "address": "名古屋市中村区椿町19番3号カニエビル5F",
-    "prefecture": "愛知県",
-    "lat": 35.16767,
-    "lng": 136.87965,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0018128",
     "name": "トレカっち",
     "address": "名古屋市中村区椿町19-13カニエビル5F",
     "prefecture": "愛知県",
     "lat": 35.168,
     "lng": 136.879536,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0007234",
-    "name": "竜星の嵐名古屋店",
-    "address": "名古屋市中村区椿町21-5 桜木ビル3F",
-    "prefecture": "愛知県",
-    "lat": 35.1679,
-    "lng": 136.87931,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3977,17 +3988,6 @@
     "prefecture": "愛知県",
     "lat": 35.163925,
     "lng": 136.908324,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0013774",
-    "name": "晴れる屋大須店",
-    "address": "名古屋市中区大須4丁目11-5",
-    "prefecture": "愛知県",
-    "lat": 35.15839,
-    "lng": 136.9063,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -4367,17 +4367,6 @@
     "status": "active"
   },
   {
-    "official_id": "0017586",
-    "name": "カードショップLight",
-    "address": "草津市西草津1丁目7-40",
-    "prefecture": "滋賀県",
-    "lat": 35.019061,
-    "lng": 135.955255,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0013390",
     "name": "カードショップ WiZ",
     "address": "草津市野路町659-1アベニール2階",
@@ -4395,17 +4384,6 @@
     "prefecture": "滋賀県",
     "lat": 34.97253,
     "lng": 136.16448,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0018565",
-    "name": "晴れる屋京都店",
-    "address": "京都市下京区七条通新町路東入る西堺町149-14 サザン京都駅前ビル 6F B",
-    "prefecture": "京都府",
-    "lat": 34.989122,
-    "lng": 135.757555,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -4626,17 +4604,6 @@
     "prefecture": "大阪府",
     "lat": 34.6897,
     "lng": 135.47511,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0010086",
-    "name": "BLACK FROG",
-    "address": "大阪市浪速区日本橋4丁目9-22 リファインビル5F",
-    "prefecture": "大阪府",
-    "lat": 34.66085,
-    "lng": 135.50636,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -5280,17 +5247,6 @@
     "status": "active"
   },
   {
-    "official_id": "0006477",
-    "name": "GAMESHOP WIZ",
-    "address": "岡山市北区野田屋町1-3-3 岡ビル1F",
-    "prefecture": "岡山県",
-    "lat": 34.66687,
-    "lng": 133.92319,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0005803",
     "name": "ボードウォーク",
     "address": "岡山市北区幸町1-7 大田ビル4F",
@@ -5715,17 +5671,6 @@
     "prefecture": "高知県",
     "lat": 33.54538,
     "lng": 133.54978,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0018548",
-    "name": "TSUTAYA南国店",
-    "address": "南国市篠原194-1",
-    "prefecture": "高知県",
-    "lat": 33.568151,
-    "lng": 133.6348431,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
