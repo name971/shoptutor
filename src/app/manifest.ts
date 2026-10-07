@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'ShopTutor | MTG店舗レビューサイト',
     short_name: 'ShopTutor',
-    description: 'マジック：ザ・ギャザリングの店舗約563店舗の口コミ・イベント情報をチェックできるレビューサイト',
+    description: 'マジック：ザ・ギャザリングの全国の公認店舗の口コミ・イベント情報をチェックできるレビューサイト',
     start_url: '/',
     display: 'standalone',
     background_color: '#f9fafb',

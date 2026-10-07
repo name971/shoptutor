@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const siteName = "ShopTutor";
 const siteDescription =
-  "マジック：ザ・ギャザリングの店舗約563店舗の口コミ・イベント情報をチェックできるレビューサイト";
+  "マジック：ザ・ギャザリングの全国の公認店舗の口コミ・イベント情報をチェックできるレビューサイト";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
