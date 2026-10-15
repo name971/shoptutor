@@ -35,9 +35,11 @@ type Props = {
   onBoundsChange?: (bounds: MapBounds) => void
   focusShop?: ShopListItem | null
   focusToken?: number
+  // エリア絞り込み時に、この店舗群が収まるよう地図を合わせる（nullなら動かさない）
+  fitShops?: ShopListItem[] | null
 }
 
-export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsChange, focusShop, focusToken }: Props) {
+export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsChange, focusShop, focusToken, fitShops }: Props) {
   const clusterCountBasis = visibleCount ?? shops.length
   const router = useRouter()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -253,6 +255,15 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
 
     mapInstanceRef.current.flyTo([focusShop.lat, focusShop.lng], 16, { duration: 0.6 })
   }, [focusShop, focusToken])
+
+  useEffect(() => {
+    if (!fitShops || !mapInstanceRef.current) return
+    const points = fitShops
+      .filter((s) => s.lat !== null && s.lng !== null)
+      .map((s) => [s.lat, s.lng] as [number, number])
+    if (points.length === 0) return
+    mapInstanceRef.current.fitBounds(points, { padding: [40, 40], maxZoom: 14 })
+  }, [fitShops])
 
   const handleLocate = () => {
     if (!mapInstanceRef.current) return

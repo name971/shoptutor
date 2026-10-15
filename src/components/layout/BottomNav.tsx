@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Map, CalendarDays, Star, User, type LucideIcon } from 'lucide-react'
+import { CalendarDays, Store, Star, User, type LucideIcon } from 'lucide-react'
 
 const TABS: { href: string; icon: LucideIcon; label: string }[] = [
-  { href: '/', icon: Home, label: 'ホーム' },
-  { href: '/map', icon: Map, label: '地図' },
-  { href: '/events', icon: CalendarDays, label: 'イベント' },
+  { href: '/', icon: CalendarDays, label: 'イベント' },
+  { href: '/shops', icon: Store, label: '店舗' },
   { href: '/favorites', icon: Star, label: 'お気に入り' },
   { href: '/mypage', icon: User, label: 'マイページ' },
 ]
