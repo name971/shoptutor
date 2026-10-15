@@ -1,8 +1,8 @@
-import { ShopListItem } from '@/types'
-import ShopBadges, { isNew } from '@/components/ui/ShopBadges'
-import StarRating from '@/components/ui/StarRating'
+import { ShopListItem, FORMAT_HEX } from '@/types'
+import { isNew } from '@/components/ui/ShopBadges'
 import FormatBadge from '@/components/ui/FormatBadge'
 import Link from 'next/link'
+import { Star, CalendarDays } from 'lucide-react'
 
 type Props = {
   shop: ShopListItem
@@ -21,57 +21,72 @@ const FORMAT_COUNT_FIELDS = [
   { key: 'limited', field: 'limited_count' },
 ] as const
 
+const MAX_FORMAT_BADGES = 3
+
 export default function ShopCard({ shop, distance, showPrefecture = true, isPr = false, onClick }: Props) {
-  const activeFormats = FORMAT_COUNT_FIELDS.filter((f) => shop[f.field] > 0)
+  // 開催回数の多い順に並べ、先頭（その店の主力フォーマット）の色をカード左端の帯に使う
+  const activeFormats = FORMAT_COUNT_FIELDS.map((f) => ({ key: f.key, count: shop[f.field] }))
+    .filter((f) => f.count > 0)
+    .sort((a, b) => b.count - a.count)
+  const mainFormat = activeFormats[0]?.key
+  const hiddenFormatCount = activeFormats.length - MAX_FORMAT_BADGES
+  const hasDistance = distance !== null && distance !== undefined
+  const shopIsNew = isNew(shop.first_listed_at)
 
   const content = (
-    <div className="bg-white border border-gray-200 rounded-xl p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer">
-      {(isPr || isNew(shop.first_listed_at) || shop.is_wpn_premium || shop.is_teaching_meister) && (
-        <div className="flex items-center gap-1 flex-wrap justify-between mb-1">
-          {isPr ? <span className="text-[9px] text-gray-400 px-1">PR</span> : <span />}
-          <div className="flex items-center gap-1 flex-wrap justify-end">
-            {isNew(shop.first_listed_at) && (
-              <span className="text-[9px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full font-medium">
-                NEW
-              </span>
-            )}
-            {shop.is_wpn_premium && (
-              <span className="text-[9px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-medium">
-                WPN
-              </span>
-            )}
-            {shop.is_teaching_meister && (
-              <span className="text-[9px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full font-medium">
-                マイスター
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-      <div className="font-semibold text-base mb-1">{shop.name}</div>
-      <div className="flex items-center gap-1.5 mb-1">
-        <StarRating value={shop.avg_total} size="md" />
-        <span className="text-sm text-gray-400">（{shop.review_count}件）</span>
-      </div>
-      {(showPrefecture || (distance !== null && distance !== undefined)) && (
-        <div className="text-xs text-gray-500 mb-2">
-          {showPrefecture && shop.prefecture}
-          {distance !== null && distance !== undefined && (
-            <span className="ml-1">· {distance.toFixed(1)}km</span>
+    <div
+      className="relative bg-white border border-gray-200 rounded-xl py-3 pr-3 pl-4 overflow-hidden hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-1.5"
+    >
+      <span
+        aria-hidden
+        className="absolute left-0 inset-y-0 w-1"
+        style={{ background: mainFormat ? FORMAT_HEX[mainFormat] : '#e5e7eb' }}
+      />
+      {(isPr || shopIsNew || shop.is_wpn_premium || shop.is_teaching_meister) && (
+        <div className="flex items-center gap-1 flex-wrap">
+          {shop.is_wpn_premium && (
+            <span className="text-[11px] font-bold bg-yellow-100 text-yellow-800 px-1.5 py-px rounded">WPNプレミアム</span>
           )}
+          {shop.is_teaching_meister && (
+            <span className="text-[11px] font-bold bg-orange-100 text-orange-800 px-1.5 py-px rounded">マイスター</span>
+          )}
+          {shopIsNew && (
+            <span className="text-[11px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-px rounded">NEW</span>
+          )}
+          {isPr && <span className="ml-auto text-[11px] text-gray-400">PR</span>}
         </div>
       )}
-      <div className="flex flex-wrap gap-1">
-        <ShopBadges shop={shop} size="sm" showNew={false} showWpn={false} showMeister={false} />
-        {activeFormats.map((f) => (
-          <FormatBadge key={f.key} format={f.key} size="sm" />
-        ))}
-      </div>
-      <div className="flex justify-end items-center mt-2">
-        <span className="text-xs text-gray-400">
-          週イベント{shop.weekly_event_count}回
+      <div className="font-bold text-[15px] leading-snug text-gray-900">{shop.name}</div>
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-xs text-gray-600">
+        {shop.review_count > 0 && shop.avg_total !== null ? (
+          <span className="inline-flex items-center gap-1">
+            <Star size={14} className="fill-yellow-400 text-yellow-400" />
+            <span className="font-bold text-gray-900 tabular-nums">{shop.avg_total.toFixed(1)}</span>
+            <span className="text-gray-500 tabular-nums">({shop.review_count})</span>
+          </span>
+        ) : (
+          <span className="text-gray-400">レビューなし</span>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <CalendarDays size={14} className="text-gray-400" />
+          週<span className="font-bold text-gray-900 tabular-nums">{shop.weekly_event_count}</span>回
         </span>
+        {(showPrefecture || hasDistance) && (
+          <span className="text-gray-500">
+            {showPrefecture && shop.prefecture}
+            {showPrefecture && hasDistance && ' · '}
+            {hasDistance && <span className="tabular-nums">{distance.toFixed(1)}km</span>}
+          </span>
+        )}
       </div>
+      {activeFormats.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {activeFormats.slice(0, MAX_FORMAT_BADGES).map((f) => (
+            <FormatBadge key={f.key} format={f.key} size="sm" count={f.count} />
+          ))}
+          {hiddenFormatCount > 0 && <span className="text-[11px] text-gray-500">+{hiddenFormatCount}</span>}
+        </div>
+      )}
     </div>
   )
 

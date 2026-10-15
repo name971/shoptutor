@@ -26,28 +26,16 @@ export default function AuthStatus() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    window.location.href = '/'
-  }
-
   if (loading) return null
 
   if (!user) {
     return (
-      <Link href="/login" className="text-xs font-medium text-blue-600 whitespace-nowrap">
+      <Link href="/login" className="text-sm font-medium text-blue-600 whitespace-nowrap py-2 px-1">
         ログイン
       </Link>
     )
   }
 
-  return (
-    <button
-      onClick={handleSignOut}
-      className="text-xs font-medium text-gray-500 whitespace-nowrap"
-    >
-      ログアウト
-    </button>
-  )
+  // ログイン中はマイページ（下部ナビ）から操作するため、ヘッダーには何も出さない
+  return null
 }

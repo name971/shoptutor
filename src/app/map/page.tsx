@@ -12,6 +12,8 @@ import ShopCard from '@/components/shop/ShopCard'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
 import type { MapBounds } from '@/components/map/ShopMap'
+import Chip from '@/components/ui/Chip'
+import { Search, X } from 'lucide-react'
 
 const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
   ssr: false,
@@ -166,60 +168,47 @@ export default function MapPage() {
   const visibleInList = filtered.filter(inBounds)
 
   return (
-    <div className="h-[calc(100dvh-3.5rem)] flex flex-col">
+    <div className="h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-bottom))] flex flex-col">
       {/* ヘッダー */}
-      <div className="bg-white border-b px-4 py-2 flex items-center gap-3 z-10">
-        <div className="font-bold text-base text-gray-800">地図</div>
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="店舗名・エリアで検索"
-          className="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
-        />
+      <div className="bg-white border-b px-4 pt-2 flex items-center gap-3 z-10">
+        <div className="font-bold text-base text-gray-900">地図</div>
+        <label className="flex-1 min-w-0 flex items-center gap-2 bg-gray-100 rounded-lg px-3 h-9 focus-within:ring-2 focus-within:ring-blue-300">
+          <Search size={16} className="text-gray-400 flex-shrink-0" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="店舗名・エリアで検索"
+            aria-label="店舗名・エリアで検索"
+            className="flex-1 min-w-0 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none"
+          />
+          {searchQuery && (
+            <button type="button" onClick={() => setSearchQuery('')} aria-label="検索語を消す" className="text-gray-400 hover:text-gray-600">
+              <X size={16} />
+            </button>
+          )}
+        </label>
         <AuthStatus />
       </div>
 
       {/* フィルター */}
-      <div className="bg-white border-b px-4 py-2 flex gap-2 overflow-x-auto z-10">
+      <div className="bg-white border-b px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar z-10">
         {FORMATS.map((f) => (
-          <button
+          <Chip
             key={f.key}
+            selected={selectedFormat === f.key}
             onClick={() => setSelectedFormat(selectedFormat === f.key ? null : f.key)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              selectedFormat === f.key
-                ? 'bg-blue-50 border-blue-400 text-blue-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
           >
             {f.label}
-          </button>
+          </Chip>
         ))}
-        <div className="flex items-center gap-2 pl-2 ml-1 border-l border-gray-200 flex-shrink-0">
-          <button
-            onClick={() => setWpnOnly(!wpnOnly)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              wpnOnly
-                ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
-          >
-            WPNプレミアム
-          </button>
-          <button
-            onClick={() => setMeisterOnly(!meisterOnly)}
-            className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              meisterOnly
-                ? 'bg-orange-50 border-orange-400 text-orange-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
-          >
-            マイスター
-          </button>
-        </div>
+        <span className="h-5 w-px bg-gray-200 flex-shrink-0" />
+        <Chip selected={wpnOnly} onClick={() => setWpnOnly(!wpnOnly)}>WPNプレミアム</Chip>
+        <Chip selected={meisterOnly} onClick={() => setMeisterOnly(!meisterOnly)}>マイスター</Chip>
         <select
           value={selectedSort}
           onChange={(e) => setSelectedSort(e.target.value)}
-          className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600"
+          aria-label="並び順"
+          className="ml-auto h-8 text-xs border border-gray-200 rounded-full px-2 bg-white text-gray-700 flex-shrink-0"
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.key} value={o.key}>{o.label}</option>
@@ -231,7 +220,7 @@ export default function MapPage() {
       <div className="flex md:hidden border-b bg-white">
         <button
           onClick={() => setMobileView('map')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
             mobileView === 'map' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'
           }`}
         >
@@ -239,7 +228,7 @@ export default function MapPage() {
         </button>
         <button
           onClick={() => setMobileView('list')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
             mobileView === 'list' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'
           }`}
         >

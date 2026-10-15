@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Event, OTHER_FORMAT_KEYS } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
-import { isEventPast } from '@/lib/eventTime'
+import { isEventPast, formatEventWhen } from '@/lib/eventTime'
 
 type FormatCount = {
   key: string
@@ -42,16 +42,16 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
 
   if (upcomingEvents.length === 0) {
     return (
-      <div className="bg-white rounded-xl border p-3">
-        <div className="font-medium text-sm mb-3 flex items-center gap-1">📅 公式イベント情報</div>
-        <div className="text-xs text-gray-400">今週のイベント情報はありません</div>
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="font-bold text-base text-gray-900 mb-2">イベント</h2>
+        <div className="text-sm text-gray-500">今週のイベント情報はありません</div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl border p-3">
-      <div className="font-medium text-sm mb-3 flex items-center gap-1">📅 公式イベント情報</div>
+    <div className="bg-white rounded-xl border p-4">
+      <h2 className="font-bold text-base text-gray-900 mb-3">イベント</h2>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
         <button
@@ -85,22 +85,19 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
         <>
           <div className="flex flex-col gap-1">
             {visibleEvents.map((event) => (
-              <div key={event.id} className="flex items-center justify-between text-xs py-1 border-t">
-                <span className="text-gray-700 truncate flex-1">{event.title}</span>
-                <div className="flex items-center gap-2 ml-2">
-                  <FormatBadge format={event.format} size="sm" />
-                  <span className="text-gray-600 whitespace-nowrap">
-                    {event.held_at}
-                    {event.start_time && ` ${event.start_time}〜`}
-                  </span>
-                </div>
+              <div key={event.id} className="flex items-center gap-3 text-sm py-2 border-t">
+                <span className="w-28 flex-shrink-0 text-xs font-bold text-gray-900 tabular-nums">
+                  {formatEventWhen(event.held_at, event.start_time)}
+                </span>
+                <span className="text-gray-700 truncate flex-1 min-w-0">{event.title}</span>
+                <FormatBadge format={event.format} size="sm" />
               </div>
             ))}
           </div>
           {filteredEvents.length > visibleCount && (
             <button
               onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
-              className="w-full text-center text-xs text-blue-600 hover:underline pt-2"
+              className="w-full text-center text-sm font-medium text-blue-600 hover:underline pt-3"
             >
               もっと見る
             </button>

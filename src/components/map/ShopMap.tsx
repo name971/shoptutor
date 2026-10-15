@@ -271,7 +271,7 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
       <div ref={mapRef} className="w-full h-full" />
 
       <div className="absolute bottom-6 right-16 z-[1000] flex flex-col items-center gap-1">
-        <span className="bg-white text-[10px] text-gray-600 px-1.5 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
+        <span className="bg-white text-xs text-gray-700 px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
           初期表示に戻る
         </span>
         <button
@@ -287,7 +287,7 @@ export default function ShopMap({ shops, visibleCount, onShopSelect, onBoundsCha
       </div>
 
       <div className="absolute bottom-6 right-3 z-[1000] flex flex-col items-center gap-1">
-        <span className="bg-white text-[10px] text-gray-600 px-1.5 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
+        <span className="bg-white text-xs text-gray-700 px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap">
           現在地
         </span>
         <button

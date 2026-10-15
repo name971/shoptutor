@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-import { isEventPast, jstDateKey } from '@/lib/eventTime'
+import { isEventPast, jstDateKey, formatEventWhen } from '@/lib/eventTime'
+import Chip from '@/components/ui/Chip'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
 
@@ -134,22 +136,14 @@ export default function FavoritesPage() {
   if (checking) return null
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
-        <div className="font-bold text-sm mb-2">お気に入り</div>
+        <h1 className="font-bold text-base text-gray-900 mb-2">お気に入り</h1>
         <div className="flex gap-2">
           {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-                tab === t.key
-                  ? 'bg-blue-50 border-blue-400 text-blue-700'
-                  : 'bg-white border-gray-200 text-gray-600'
-              }`}
-            >
+            <Chip key={t.key} selected={tab === t.key} onClick={() => setTab(t.key)}>
               {t.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
@@ -159,8 +153,12 @@ export default function FavoritesPage() {
           <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
         ) : tab === 'shops' ? (
           shops.length === 0 ? (
-            <div className="text-center text-gray-400 text-sm py-8">
+            <div className="text-center text-gray-500 text-sm py-10 flex flex-col items-center gap-3">
               お気に入り店舗がまだありません
+              <span className="text-xs text-gray-400">店舗ページの☆を押すと、ここに追加されます</span>
+              <Link href="/" className="h-10 px-4 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center">
+                店舗をさがす
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -174,17 +172,9 @@ export default function FavoritesPage() {
             <EventNotice />
             <div className="flex flex-wrap gap-2 mb-3">
               {FORMATS.map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => toggleFormat(f.key)}
-                  className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-                    selectedFormats.has(f.key)
-                      ? 'bg-blue-50 border-blue-400 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
+                <Chip key={f.key} selected={selectedFormats.has(f.key)} onClick={() => toggleFormat(f.key)}>
                   {f.label}
-                </button>
+                </Chip>
               ))}
             </div>
             {filteredEvents.length === 0 ? (
@@ -204,9 +194,8 @@ export default function FavoritesPage() {
                       </div>
                       <div className="text-xs text-gray-500 flex items-center justify-between gap-2">
                         <span className="truncate flex-1">{event.title}</span>
-                        <span className="text-gray-400 whitespace-nowrap">
-                          {event.held_at}
-                          {event.start_time && ` ${event.start_time}〜`}
+                        <span className="text-gray-700 font-medium whitespace-nowrap tabular-nums">
+                          {formatEventWhen(event.held_at, event.start_time)}
                         </span>
                       </div>
                     </div>

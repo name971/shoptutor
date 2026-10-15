@@ -38,3 +38,20 @@ export function isEventPast(heldAt: string, startTime: string | null): boolean {
   const currentTime = `${p.hour}:${p.minute}`
   return startTime < currentTime
 }
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+// "2026-10-17" → "今日" / "明日" / "10/17(金)"
+export function formatEventDate(heldAt: string): string {
+  if (heldAt === jstDateKey()) return '今日'
+  if (heldAt === jstDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))) return '明日'
+  const [y, m, d] = heldAt.split('-').map(Number)
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  return `${m}/${d}(${weekday})`
+}
+
+// 一覧表示用の「日付＋開始時刻」 例: "今日 19:00〜" / "10/17(金) 18:30〜" / "10/18(土)"
+export function formatEventWhen(heldAt: string, startTime: string | null): string {
+  const date = formatEventDate(heldAt)
+  return startTime ? `${date} ${startTime}〜` : date
+}
