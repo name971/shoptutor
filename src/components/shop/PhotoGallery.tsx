@@ -126,7 +126,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="surface p-4">
       <h2 className="font-bold text-base text-gray-900 mb-3">写真</h2>
 
       {visible.length > 0 && (

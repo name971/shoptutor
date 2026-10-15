@@ -42,7 +42,7 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
 
   if (upcomingEvents.length === 0) {
     return (
-      <div className="bg-white rounded-xl border p-4">
+      <div className="surface p-4">
         <h2 className="font-bold text-base text-gray-900 mb-2">イベント</h2>
         <div className="text-sm text-gray-500">今週のイベント情報はありません</div>
       </div>
@@ -50,7 +50,7 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
   }
 
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="surface p-4">
       <h2 className="font-bold text-base text-gray-900 mb-3">イベント</h2>
 
       <div className="grid grid-cols-2 gap-2 mb-3">

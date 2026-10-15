@@ -112,9 +112,9 @@ export default async function ShopDetailPage({ params }: Props) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-background pb-28">
       {/* ヘッダー＋セクションへの移動 */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-12 flex items-center gap-2">
           <BackButton />
           <div className="text-sm font-bold text-gray-900 truncate">{shop.name}</div>
@@ -140,7 +140,7 @@ export default async function ShopDetailPage({ params }: Props) {
         )}
 
         {/* 基本情報 */}
-        <div className="bg-white rounded-xl border p-4 flex flex-col gap-3">
+        <div className="surface p-4 flex flex-col gap-3">
           <ShopBadges shop={shop} />
           <h1 className="text-xl font-bold text-gray-900 leading-snug">{shop.name}</h1>
 
@@ -211,7 +211,7 @@ export default async function ShopDetailPage({ params }: Props) {
 
         {/* 営業時間・駐車場（プレミアム店舗のオーナー設定情報） */}
         {(shop.business_hours || shop.parking_available !== null) && (
-          <section id="info" className="scroll-mt-28 bg-white rounded-xl border p-4 flex flex-col gap-3">
+          <section id="info" className="scroll-mt-28 surface p-4 flex flex-col gap-3">
             <h2 className="font-bold text-base text-gray-900">店舗情報</h2>
             {shop.business_hours && (
               <div className="flex items-start gap-2 text-sm text-gray-700">

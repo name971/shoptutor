@@ -136,9 +136,9 @@ export default function FavoritesPage() {
   if (checking) return null
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
-        <h1 className="font-bold text-base text-gray-900 mb-2">お気に入り</h1>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="app-header px-4 py-3 sticky top-0 z-10">
+        <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight mb-3">お気に入り</h1>
         <div className="flex gap-2">
           {TABS.map((t) => (
             <Chip key={t.key} selected={tab === t.key} onClick={() => setTab(t.key)}>
@@ -187,7 +187,7 @@ export default function FavoritesPage() {
               <>
                 <div className="flex flex-col gap-2">
                   {visibleEvents.map((event) => (
-                    <div key={event.id} className="bg-white rounded-xl border p-3">
+                    <div key={event.id} className="surface p-3">
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-sm font-medium truncate">{event.shops?.name}</div>
                         <FormatBadge format={event.format} size="sm" />

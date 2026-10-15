@@ -151,8 +151,8 @@ export default function ReviewFormPage() {
   if (checking) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+    <div className="min-h-screen bg-background">
+      <div className="app-header px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <BackButton />
         <div className="font-bold text-sm flex-1 truncate">
           {reviewId ? 'レビューを編集' : 'レビューを投稿'}{shopName && ` · ${shopName}`}
@@ -160,7 +160,7 @@ export default function ReviewFormPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
-        <div className="bg-white rounded-xl border p-3 flex flex-col gap-3">
+        <div className="surface p-3 flex flex-col gap-3">
           {RATING_FIELDS.map((f) => (
             <StarRatingInput
               key={f.key}
@@ -171,7 +171,7 @@ export default function ReviewFormPage() {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl border p-3">
+        <div className="surface p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">コメント（任意）</span>
             <span className="text-xs text-gray-400">{body.trim().length}字</span>

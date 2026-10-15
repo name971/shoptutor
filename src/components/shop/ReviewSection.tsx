@@ -22,7 +22,7 @@ type Props = {
 
 export default function ReviewSection({ shopId, avgTotal, reviewCount, ratingAverages, reviews }: Props) {
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="surface p-4">
       <h2 className="font-bold text-base text-gray-900 mb-3">レビュー</h2>
 
       {reviewCount === 0 ? (

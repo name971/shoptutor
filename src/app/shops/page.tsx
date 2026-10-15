@@ -276,7 +276,7 @@ export default function ShopsPage() {
   }
 
   const header = (
-    <div className={`bg-white border-b z-10 ${view === 'list' ? 'sticky top-0' : ''}`}>
+    <div className={`app-header z-10 ${view === 'list' ? 'sticky top-0' : ''}`}>
       <div className={`${view === 'list' ? 'max-w-lg' : ''} mx-auto px-4 pt-2 flex items-center gap-2`}>
         <label className="flex-1 min-w-0 flex items-center gap-2 bg-gray-100 rounded-lg px-3 h-9 focus-within:ring-2 focus-within:ring-blue-300">
           <Search size={16} className="text-gray-400 flex-shrink-0" />
@@ -423,7 +423,7 @@ export default function ShopsPage() {
     }
 
     return (
-      <div className="h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-bottom))] flex flex-col">
+      <div className="h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] flex flex-col">
         {header}
         <div className="flex-1 flex overflow-hidden">
           {/* Leafletのペイン（z-index 400〜）が絞り込みシートより前に出ないよう、地図を独立した重なり順に閉じ込める */}
@@ -537,7 +537,7 @@ export default function ShopsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-24">
       {header}
 
       <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-3">

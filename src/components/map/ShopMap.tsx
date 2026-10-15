@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { ShopListItem, FORMAT_HEX } from '@/types'
-import { createShopMarkerIcon, createClusterIcon } from './ShopMarker'
+import { renderPinHtml, renderClusterHtml } from './ShopMarker'
 import { getMainFormat, getFormatCount } from '@/lib/shopFormat'
 import { Plus, Minus, LocateFixed, Maximize2 } from 'lucide-react'
 
@@ -13,37 +15,23 @@ export type MapBounds = {
   west: number
 }
 
-const DEFAULT_CENTER: [number, number] = [36.5, 136.0]
-const DEFAULT_ZOOM = 6
+// OpenFreeMap（無料・登録不要・利用回数の上限なし）のベクタースタイル
+const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty'
+
+// [経度, 緯度]
+const DEFAULT_CENTER: [number, number] = [136.0, 36.5]
+const DEFAULT_ZOOM = 4.6
 // これ未満のズームでは店名ラベルを出さない（広域で文字が重なって読めなくなるため）
-const LABEL_MIN_ZOOM = 13
+const LABEL_MIN_ZOOM = 12
+// これより拡大したらクラスタにまとめず全ピンを出す
+const CLUSTER_MAX_ZOOM = 13
+const VIEW_STORAGE_KEY = 'shoptutor_map_view_v2'
 
 // 店舗が少ないときはピン同士が重なる場合だけまとめる（半径を小さく）
 function getClusterRadius(shopCount: number): number {
-  if (shopCount <= 30) return 24
-  if (shopCount <= 100) return 40
-  return 50
-}
-
-// これ以上ズームしたらまとめずに全ピンを出す
-const DISABLE_CLUSTERING_ZOOM = 15
-
-function createClusterLayer(L: any, radius: number, colorRef: { current: string | null }) {
-  return L.markerClusterGroup({
-    maxClusterRadius: radius,
-    disableClusteringAtZoom: DISABLE_CLUSTERING_ZOOM,
-    showCoverageOnHover: false,
-    iconCreateFunction: (cluster: any) => createClusterIcon(cluster.getChildCount(), colorRef.current),
-  })
-}
-
-// ピンの色と数字：フォーマットで絞り込み中はそのフォーマットの色・回数、それ以外は主力フォーマットの色・週のイベント数
-function markerIcon(shop: ShopListItem, highlightFormat: string | null, selected: boolean) {
-  return createShopMarkerIcon({
-    format: highlightFormat ?? getMainFormat(shop),
-    count: highlightFormat ? getFormatCount(shop, highlightFormat) : shop.weekly_event_count,
-    selected,
-  })
+  if (shopCount <= 30) return 30
+  if (shopCount <= 100) return 45
+  return 55
 }
 
 type Props = {
@@ -74,20 +62,17 @@ export default function ShopMap({
   highlightFormat = null,
 }: Props) {
   const clusterCountBasis = visibleCount ?? shops.length
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const clusterRef = useRef<any>(null)
-  const clusterRadiusRef = useRef<number | null>(null)
-  const markersRef = useRef<Map<string, { marker: any; shop: ShopListItem }>>(new Map())
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+  const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const shopByIdRef = useRef<Map<string, ShopListItem>>(new Map())
   const selectedIdRef = useRef<string | null>(selectedShopId)
   const highlightFormatRef = useRef<string | null>(highlightFormat)
-  // フォーマットで絞り込み中は、クラスタもそのフォーマット色にする
-  const clusterColorRef = useRef<string | null>(highlightFormat ? FORMAT_HEX[highlightFormat] ?? null : null)
   const onShopSelectRef = useRef(onShopSelect)
   const onMapClickRef = useRef(onMapClick)
   const onBoundsChangeRef = useRef(onBoundsChange)
-  const locationMarkerRef = useRef<any>(null)
-  const locationCircleRef = useRef<any>(null)
+  const locationMarkerRef = useRef<maplibregl.Marker | null>(null)
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState('')
 
@@ -97,204 +82,226 @@ export default function ShopMap({
     onBoundsChangeRef.current = onBoundsChange
   }, [onShopSelect, onMapClick, onBoundsChange])
 
+  // ピンの見た目：フォーマットで絞り込み中はそのフォーマットの色・回数、それ以外は主力フォーマットの色・週のイベント数
+  const pinHtml = (shop: ShopListItem, selected: boolean) => {
+    const format = highlightFormatRef.current
+    return renderPinHtml({
+      name: shop.name,
+      format: format ?? getMainFormat(shop),
+      count: format ? getFormatCount(shop, format) : shop.weekly_event_count,
+      selected,
+    })
+  }
+
   // 地図本体の初期化（一度だけ）
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (mapInstanceRef.current) return
-    if (!mapRef.current) return
-    if ((mapRef.current as any)._leaflet_id) return
+    if (!containerRef.current || mapRef.current) return
 
-    let cancelled = false
-
-    const initMap = async () => {
-      const L = (await import('leaflet')).default
-      await import('leaflet/dist/leaflet.css')
-      await import('leaflet.markercluster')
-      await import('leaflet.markercluster/dist/MarkerCluster.css')
-
-      if (cancelled || !mapRef.current || (mapRef.current as any)._leaflet_id) return
-
-      let initialCenter: [number, number] = DEFAULT_CENTER
-      let initialZoom = DEFAULT_ZOOM
-      try {
-        const saved = window.sessionStorage.getItem('shoptutor_map_view')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (parsed?.center && typeof parsed.zoom === 'number') {
-            initialCenter = parsed.center
-            initialZoom = parsed.zoom
-          }
-        }
-      } catch {
-        // 復元失敗時はデフォルト値のまま
-      }
-
-      const map = L.map(mapRef.current!, {
-        center: initialCenter,
-        zoom: initialZoom,
-        zoomControl: false,
-      })
-      map.attributionControl.setPrefix(false)
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map)
-
-      const radius = getClusterRadius(clusterCountBasis)
-      const cluster = createClusterLayer(L, radius, clusterColorRef)
-      map.addLayer(cluster)
-      clusterRadiusRef.current = radius
-
-      const emitBounds = () => {
-        const b = map.getBounds()
-        onBoundsChangeRef.current?.({
-          north: b.getNorth(),
-          south: b.getSouth(),
-          east: b.getEast(),
-          west: b.getWest(),
-        })
-      }
-
-      const saveView = () => {
-        try {
-          const center = map.getCenter()
-          window.sessionStorage.setItem(
-            'shoptutor_map_view',
-            JSON.stringify({ center: [center.lat, center.lng], zoom: map.getZoom() })
-          )
-        } catch {
-          // 保存失敗は無視
+    let center = DEFAULT_CENTER
+    let zoom = DEFAULT_ZOOM
+    try {
+      const saved = window.sessionStorage.getItem(VIEW_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed?.center) && typeof parsed.zoom === 'number') {
+          center = parsed.center
+          zoom = parsed.zoom
         }
       }
-
-      const updateLabelVisibility = () => {
-        mapRef.current?.classList.toggle('map-labels-hidden', map.getZoom() < LABEL_MIN_ZOOM)
-      }
-
-      map.on('moveend', emitBounds)
-      map.on('moveend', saveView)
-      map.on('zoomend', updateLabelVisibility)
-      map.on('click', () => onMapClickRef.current?.())
-      updateLabelVisibility()
-
-      map.on('locationfound', (e: any) => {
-        setLocating(false)
-        setLocationError('')
-
-        if (locationMarkerRef.current) map.removeLayer(locationMarkerRef.current)
-        if (locationCircleRef.current) map.removeLayer(locationCircleRef.current)
-
-        locationMarkerRef.current = L.circleMarker(e.latlng, {
-          radius: 8,
-          color: '#fff',
-          weight: 2,
-          fillColor: '#2563eb',
-          fillOpacity: 1,
-        }).addTo(map)
-
-        locationCircleRef.current = L.circle(e.latlng, {
-          radius: e.accuracy,
-          color: '#2563eb',
-          weight: 1,
-          fillColor: '#2563eb',
-          fillOpacity: 0.1,
-        }).addTo(map)
-      })
-
-      map.on('locationerror', () => {
-        setLocating(false)
-        setLocationError('位置情報を取得できませんでした')
-      })
-
-      mapInstanceRef.current = map
-      clusterRef.current = cluster
-
-      emitBounds()
+    } catch {
+      // 復元失敗時はデフォルト値のまま
     }
 
-    initMap()
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: MAP_STYLE_URL,
+      center,
+      zoom,
+      minZoom: 3.5,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      attributionControl: { compact: true },
+    })
+    map.touchZoomRotate.disableRotation()
+    mapRef.current = map
+    const markers = markersRef.current
+
+    const emitBounds = () => {
+      const b = map.getBounds()
+      onBoundsChangeRef.current?.({
+        north: b.getNorth(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        west: b.getWest(),
+      })
+    }
+
+    const saveView = () => {
+      try {
+        const c = map.getCenter()
+        window.sessionStorage.setItem(
+          VIEW_STORAGE_KEY,
+          JSON.stringify({ center: [c.lng, c.lat], zoom: map.getZoom() })
+        )
+      } catch {
+        // 保存失敗は無視
+      }
+    }
+
+    const updateLabelVisibility = () => {
+      containerRef.current?.classList.toggle('map-labels-hidden', map.getZoom() < LABEL_MIN_ZOOM)
+    }
+
+    map.on('load', () => {
+      // 地名・駅名などは日本語表記を優先する
+      map.getStyle().layers.forEach((layer) => {
+        if (layer.type !== 'symbol') return
+        const textField = map.getLayoutProperty(layer.id, 'text-field')
+        if (textField && JSON.stringify(textField).includes('name')) {
+          map.setLayoutProperty(layer.id, 'text-field', [
+            'coalesce',
+            ['get', 'name:ja'],
+            ['get', 'name'],
+          ])
+        }
+      })
+      setMapReady(true)
+      emitBounds()
+    })
+    map.on('moveend', emitBounds)
+    map.on('moveend', saveView)
+    map.on('zoom', updateLabelVisibility)
+    map.on('click', () => onMapClickRef.current?.())
+    updateLabelVisibility()
 
     return () => {
-      cancelled = true
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-        clusterRef.current = null
-      }
+      markers.forEach((m) => m.remove())
+      markers.clear()
+      map.remove()
+      mapRef.current = null
+      setMapReady(false)
     }
   }, [])
 
-  // ピンの再構築（shops・絞り込み中のフォーマットが変わるたび）
+  // 店舗データ（GeoJSON・クラスタ設定）の反映
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    const map = mapRef.current
+    if (!map || !mapReady) return
 
-    let cancelled = false
     highlightFormatRef.current = highlightFormat
-    clusterColorRef.current = highlightFormat ? FORMAT_HEX[highlightFormat] ?? null : null
+    shopByIdRef.current = new Map(shops.map((s) => [s.id, s]))
 
-    const rebuildMarkers = async () => {
-      const L = (await import('leaflet')).default
+    const data: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+      type: 'FeatureCollection',
+      features: shops
+        .filter((s) => s.lat !== null && s.lng !== null)
+        .map((s) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [s.lng as number, s.lat as number] },
+          properties: { id: s.id },
+        })),
+    }
 
-      // 地図の初期化待ち
-      while (!cancelled && !clusterRef.current) {
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-      if (cancelled || !clusterRef.current || !mapInstanceRef.current) return
+    // クラスタ半径はソース作成時にしか指定できないため、作り直す
+    if (map.getLayer('shops-hidden')) map.removeLayer('shops-hidden')
+    if (map.getSource('shops')) map.removeSource('shops')
+    map.addSource('shops', {
+      type: 'geojson',
+      data,
+      cluster: true,
+      clusterMaxZoom: CLUSTER_MAX_ZOOM,
+      clusterRadius: getClusterRadius(clusterCountBasis),
+    })
+    // どのレイヤーからも参照されないソースはタイルが作られずquerySourceFeaturesで取れないため、
+    // 見えないレイヤーを1つ置く（実際の見た目はHTMLマーカーで描く）
+    map.addLayer({
+      id: 'shops-hidden',
+      type: 'circle',
+      source: 'shops',
+      paint: { 'circle-radius': 0, 'circle-opacity': 0 },
+    })
 
-      const desiredRadius = getClusterRadius(clusterCountBasis)
-      if (desiredRadius !== clusterRadiusRef.current) {
-        mapInstanceRef.current.removeLayer(clusterRef.current)
-        const newCluster = createClusterLayer(L, desiredRadius, clusterColorRef)
-        mapInstanceRef.current.addLayer(newCluster)
-        clusterRef.current = newCluster
-        clusterRadiusRef.current = desiredRadius
-      }
+    // 見た目が変わるので既存のHTMLマーカーは作り直す
+    markersRef.current.forEach((m) => m.remove())
+    markersRef.current.clear()
+  }, [shops, clusterCountBasis, highlightFormat, mapReady])
 
-      clusterRef.current.clearLayers()
-      markersRef.current.clear()
-      const markers: any[] = []
+  // 表示中のクラスタ・店舗に合わせてHTMLマーカーを出し入れする
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
 
-      shops.forEach((shop) => {
-        if (!shop.lat || !shop.lng) return
+    const sync = () => {
+      if (!map.getSource('shops') || !map.isSourceLoaded('shops')) return
+      const clusterColor = highlightFormatRef.current ? FORMAT_HEX[highlightFormatRef.current] ?? null : null
+      const nextKeys = new Set<string>()
 
-        const selected = shop.id === selectedIdRef.current
-        const marker = L.marker([shop.lat, shop.lng], {
-          icon: markerIcon(shop, highlightFormat, selected),
-          zIndexOffset: selected ? 1000 : 0,
-          title: shop.name,
-          alt: shop.name,
-        })
+      map.querySourceFeatures('shops').forEach((feature) => {
+        const props = feature.properties ?? {}
+        const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates
 
-        marker.bindTooltip(shop.name, {
-          permanent: true,
-          direction: 'bottom',
-          offset: [0, 4],
-          className: 'shop-name-label',
-        })
-
-        marker.on('click', () => {
-          onShopSelectRef.current?.(shop)
-          // 下に出るプレビューカードに隠れないよう、ピンを画面の上寄りに収める
-          mapInstanceRef.current?.panInside(marker.getLatLng(), {
-            paddingTopLeft: [40, 80],
-            paddingBottomRight: [40, 260],
+        if (props.cluster) {
+          const key = `c:${props.cluster_id}:${props.point_count}`
+          nextKeys.add(key)
+          if (markersRef.current.has(key)) return
+          const el = document.createElement('button')
+          el.type = 'button'
+          el.className = 'shop-cluster-button'
+          el.setAttribute('aria-label', `${props.point_count}店舗をまとめて表示中。拡大する`)
+          el.innerHTML = renderClusterHtml(props.point_count, clusterColor)
+          el.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const source = map.getSource('shops') as maplibregl.GeoJSONSource
+            const expansionZoom = await source.getClusterExpansionZoom(props.cluster_id)
+            map.easeTo({ center: [lng, lat], zoom: expansionZoom + 0.3 })
           })
+          markersRef.current.set(key, new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map))
+          return
+        }
+
+        const shop = shopByIdRef.current.get(props.id)
+        if (!shop) return
+        const key = `s:${shop.id}`
+        nextKeys.add(key)
+        if (markersRef.current.has(key)) return
+        const el = document.createElement('button')
+        el.type = 'button'
+        el.className = 'shop-pin-button'
+        el.setAttribute('aria-label', shop.name)
+        const selected = shop.id === selectedIdRef.current
+        el.innerHTML = pinHtml(shop, selected)
+        if (selected) el.style.zIndex = '10'
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          onShopSelectRef.current?.(shop)
+          // 下に出る店舗カードに隠れる位置なら、ピンが見える位置まで地図を動かす
+          const point = map.project([lng, lat])
+          const { clientHeight } = map.getContainer()
+          if (point.y > clientHeight - 240 || point.y < 90) {
+            map.easeTo({ center: [lng, lat], offset: [0, -60] })
+          }
         })
-
-        markers.push(marker)
-        markersRef.current.set(shop.id, { marker, shop })
+        markersRef.current.set(
+          key,
+          new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map)
+        )
       })
-      // 1件ずつ追加するとクラスタの再計算が毎回走るため、まとめて追加する
-      clusterRef.current.addLayers(markers)
+
+      markersRef.current.forEach((marker, key) => {
+        if (!nextKeys.has(key)) {
+          marker.remove()
+          markersRef.current.delete(key)
+        }
+      })
     }
 
-    rebuildMarkers()
-
+    map.on('render', sync)
+    sync()
     return () => {
-      cancelled = true
+      map.off('render', sync)
     }
-  }, [shops, clusterCountBasis, highlightFormat])
+  }, [mapReady])
 
   // 選択中のピンだけ大きく・前面に表示する
   useEffect(() => {
@@ -302,40 +309,62 @@ export default function ShopMap({
     selectedIdRef.current = selectedShopId
     ;[prevId, selectedShopId].forEach((id) => {
       if (!id) return
-      const entry = markersRef.current.get(id)
-      if (!entry) return
+      const marker = markersRef.current.get(`s:${id}`)
+      const shop = shopByIdRef.current.get(id)
+      if (!marker || !shop) return
       const selected = id === selectedShopId
-      entry.marker.setIcon(markerIcon(entry.shop, highlightFormatRef.current, selected))
-      entry.marker.setZIndexOffset(selected ? 1000 : 0)
+      const el = marker.getElement()
+      el.innerHTML = pinHtml(shop, selected)
+      el.style.zIndex = selected ? '10' : ''
     })
   }, [selectedShopId])
 
   // 一覧の店舗クリックで、地図をその店舗の位置にズームインする
   useEffect(() => {
     if (!focusShop || focusShop.lat === null || focusShop.lng === null) return
-    if (!mapInstanceRef.current) return
-
-    mapInstanceRef.current.flyTo([focusShop.lat, focusShop.lng], 16, { duration: 0.6 })
+    mapRef.current?.flyTo({ center: [focusShop.lng, focusShop.lat], zoom: 15, duration: 700 })
   }, [focusShop, focusToken])
 
   useEffect(() => {
-    if (!fitShops || !mapInstanceRef.current) return
-    const points = fitShops
-      .filter((s) => s.lat !== null && s.lng !== null)
-      .map((s) => [s.lat, s.lng] as [number, number])
+    const map = mapRef.current
+    if (!fitShops || !map || !mapReady) return
+    const points = fitShops.filter((s) => s.lat !== null && s.lng !== null)
     if (points.length === 0) return
-    mapInstanceRef.current.fitBounds(points, { padding: [40, 40], maxZoom: 14 })
-  }, [fitShops])
+    const bounds = new maplibregl.LngLatBounds()
+    points.forEach((s) => bounds.extend([s.lng as number, s.lat as number]))
+    map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 700 })
+  }, [fitShops, mapReady])
 
   const handleLocate = () => {
-    if (!mapInstanceRef.current) return
+    const map = mapRef.current
+    if (!map) return
+    if (!navigator.geolocation) {
+      setLocationError('この端末では位置情報を利用できません')
+      return
+    }
     setLocating(true)
     setLocationError('')
-    mapInstanceRef.current.locate({ setView: true, maxZoom: 15 })
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false)
+        const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude]
+        if (!locationMarkerRef.current) {
+          const el = document.createElement('div')
+          el.className = 'current-location-dot'
+          locationMarkerRef.current = new maplibregl.Marker({ element: el })
+        }
+        locationMarkerRef.current.setLngLat(lngLat).addTo(map)
+        map.flyTo({ center: lngLat, zoom: 14, duration: 800 })
+      },
+      () => {
+        setLocating(false)
+        setLocationError('位置情報を取得できませんでした')
+      }
+    )
   }
 
   const handleResetView = () => {
-    mapInstanceRef.current?.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.6 })
+    mapRef.current?.flyTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM, duration: 700 })
   }
 
   const controlClass =
@@ -343,14 +372,14 @@ export default function ShopMap({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapRef} className="shop-map w-full h-full" />
+      <div ref={containerRef} className="shop-map w-full h-full" />
 
-      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
-        <div className="hidden md:flex flex-col rounded-xl shadow-md border border-gray-200 overflow-hidden divide-y">
-          <button type="button" onClick={() => mapInstanceRef.current?.zoomIn()} aria-label="拡大" className={controlClass}>
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+        <div className="hidden md:flex flex-col rounded-2xl shadow-lg shadow-slate-900/10 ring-1 ring-slate-900/5 overflow-hidden divide-y divide-slate-100">
+          <button type="button" onClick={() => mapRef.current?.zoomIn()} aria-label="拡大" className={controlClass}>
             <Plus size={18} />
           </button>
-          <button type="button" onClick={() => mapInstanceRef.current?.zoomOut()} aria-label="縮小" className={controlClass}>
+          <button type="button" onClick={() => mapRef.current?.zoomOut()} aria-label="縮小" className={controlClass}>
             <Minus size={18} />
           </button>
         </div>
@@ -360,7 +389,7 @@ export default function ShopMap({
           disabled={locating}
           aria-label="現在地を表示"
           title="現在地を表示"
-          className={`${controlClass} rounded-xl shadow-md border border-gray-200 text-blue-600`}
+          className={`${controlClass} rounded-2xl shadow-lg shadow-slate-900/10 ring-1 ring-slate-900/5 text-blue-600`}
         >
           {locating ? (
             <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
@@ -373,14 +402,14 @@ export default function ShopMap({
           onClick={handleResetView}
           aria-label="全国を表示"
           title="全国を表示"
-          className={`${controlClass} rounded-xl shadow-md border border-gray-200`}
+          className={`${controlClass} rounded-2xl shadow-lg shadow-slate-900/10 ring-1 ring-slate-900/5`}
         >
           <Maximize2 size={18} />
         </button>
       </div>
 
       {locationError && (
-        <div className="absolute top-3 right-16 z-[1000] bg-white text-xs text-red-600 px-2.5 py-1.5 rounded-lg shadow-md border border-gray-200 whitespace-nowrap">
+        <div className="absolute top-3 right-16 z-10 bg-white text-xs text-red-600 px-3 py-2 rounded-xl shadow-lg ring-1 ring-slate-900/5 whitespace-nowrap">
           {locationError}
         </div>
       )}

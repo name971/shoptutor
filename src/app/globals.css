@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6fa;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -10,6 +10,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* カード：枠線ではなく、ごく薄い影と輪郭で浮かせる */
+@utility surface {
+  background-color: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+/* 上部固定ヘッダー：半透明＋ぼかし */
+@utility app-header {
+  background-color: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
 
 /* ダークモードは未対応のためライト表示に固定する。
@@ -25,31 +40,12 @@ body {
   font-family: var(--font-geist-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
 }
 
-.shop-name-label {
-  background: rgba(255, 255, 255, 0.95);
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #1f2937;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.shop-name-label::before {
-  display: none;
-}
-
-/* 広域表示では店名ラベルを隠し、ピンだけにする（ShopMapがズームに応じて付け外し） */
-.map-labels-hidden .shop-name-label {
-  display: none;
-}
-
-/* 地図タイルの彩度を落とし、フォーマット色のピンを目立たせる */
-.shop-map .leaflet-tile-pane {
-  filter: saturate(0.35) brightness(1.04);
+.shop-pin-button,
+.shop-cluster-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .shop-pin {
@@ -81,12 +77,56 @@ body {
   border-top: 7px solid var(--pin);
 }
 
+.shop-pin-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+}
+
+/* 広域表示では店名ラベルを隠し、ピンだけにする（選択中の店舗だけは常に表示） */
+.map-labels-hidden .shop-pin-label {
+  display: none;
+}
+
+.map-labels-hidden .shop-pin.is-selected .shop-pin-label {
+  display: block;
+}
+
+.shop-pin-button:focus-visible .shop-pin-body,
+.shop-cluster-button:focus-visible .shop-cluster {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.current-location-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.2), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
 .shop-cluster {
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: #1e293b;
+  background: #0f172a;
   color: #fff;
   font-size: 13px;
   font-weight: 700;

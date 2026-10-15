@@ -336,12 +336,12 @@ export default function HomePage() {
   const hasMore = totalCount !== null && events.length < totalCount
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b sticky top-0 z-10">
+    <div className="min-h-screen bg-background pb-24">
+      <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 pt-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[11px] font-bold text-blue-600 tracking-wide">ShopTutor</div>
-            <h1 className="font-bold text-lg text-gray-900 leading-tight">どこで遊ぶ？</h1>
+            <div className="text-[11px] font-extrabold text-blue-600 tracking-wider uppercase">ShopTutor</div>
+            <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight leading-tight">どこで遊ぶ？</h1>
           </div>
           <div className="flex items-center gap-2">
             {location ? (
@@ -423,7 +423,7 @@ export default function HomePage() {
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
         {showLocationPrompt && (
-          <div className="bg-white border rounded-xl p-4 flex flex-col gap-3">
+          <div className="surface p-4 flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
                 <LocateFixed size={20} />
@@ -515,7 +515,7 @@ export default function HomePage() {
                     <Link
                       key={event.id}
                       href={`/shops/${event.shop_id}`}
-                      className="bg-white rounded-xl border p-3 flex gap-3 hover:border-blue-300 transition-colors"
+                      className="surface p-3 flex gap-3 hover:shadow-md transition-colors"
                     >
                       <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-gray-100 pr-3">
                         <span className="text-base font-bold text-gray-900 tabular-nums">
@@ -555,7 +555,7 @@ export default function HomePage() {
 
         <Link
           href="/shops"
-          className="mt-2 flex items-center gap-3 bg-white border rounded-xl p-3 hover:border-blue-300"
+          className="mt-2 flex items-center gap-3 surface p-3 hover:shadow-md"
         >
           <span className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0">
             <Store size={20} />

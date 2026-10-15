@@ -3,14 +3,14 @@ import BackButton from '@/components/ui/BackButton'
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+    <div className="min-h-screen bg-background pb-24">
+      <div className="app-header px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <BackButton />
         <div className="font-bold text-sm">利用規約</div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="bg-white rounded-xl border p-4 flex flex-col gap-5 text-sm leading-relaxed text-gray-700">
+        <div className="surface p-4 flex flex-col gap-5 text-sm leading-relaxed text-gray-700">
           <p>
             この利用規約（以下「本規約」）は、ShopTutor（以下「本サービス」）の利用条件を定めるものです。
             利用者の皆様（以下「ユーザー」）には、本規約に従って本サービスをご利用いただきます。

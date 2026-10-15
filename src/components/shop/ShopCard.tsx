@@ -25,7 +25,7 @@ export default function ShopCard({ shop, distance, showPrefecture = true, isPr =
 
   const content = (
     <div
-      className="relative bg-white border border-gray-200 rounded-xl py-3 pr-3 pl-4 overflow-hidden hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-1.5"
+      className="relative surface py-3 pr-3 pl-4 overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col gap-1.5"
     >
       <span
         aria-hidden
