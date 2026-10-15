@@ -3,6 +3,7 @@ import { isNew } from '@/components/ui/ShopBadges'
 import FormatBadge from '@/components/ui/FormatBadge'
 import Link from 'next/link'
 import { Star, CalendarDays } from 'lucide-react'
+import { getActiveFormats } from '@/lib/shopFormat'
 
 type Props = {
   shop: ShopListItem
@@ -12,22 +13,11 @@ type Props = {
   onClick?: () => void
 }
 
-const FORMAT_COUNT_FIELDS = [
-  { key: 'commander', field: 'commander_count' },
-  { key: 'standard', field: 'standard_count' },
-  { key: 'modern', field: 'modern_count' },
-  { key: 'pioneer', field: 'pioneer_count' },
-  { key: 'legacy', field: 'legacy_count' },
-  { key: 'limited', field: 'limited_count' },
-] as const
-
 const MAX_FORMAT_BADGES = 3
 
 export default function ShopCard({ shop, distance, showPrefecture = true, isPr = false, onClick }: Props) {
   // 開催回数の多い順に並べ、先頭（その店の主力フォーマット）の色をカード左端の帯に使う
-  const activeFormats = FORMAT_COUNT_FIELDS.map((f) => ({ key: f.key, count: shop[f.field] }))
-    .filter((f) => f.count > 0)
-    .sort((a, b) => b.count - a.count)
+  const activeFormats = getActiveFormats(shop)
   const mainFormat = activeFormats[0]?.key
   const hiddenFormatCount = activeFormats.length - MAX_FORMAT_BADGES
   const hasDistance = distance !== null && distance !== undefined

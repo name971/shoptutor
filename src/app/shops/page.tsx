@@ -6,6 +6,8 @@ import {
   ShopListItem,
   FORMAT_FILTER_OPTIONS as FORMATS,
   RECOMMEND_SORT_OPTIONS as SORT_OPTIONS,
+  FORMAT_HEX,
+  FORMAT_LABELS,
 } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
@@ -13,7 +15,7 @@ import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
 import Chip from '@/components/ui/Chip'
 import BottomSheet from '@/components/ui/BottomSheet'
-import { Search, SlidersHorizontal, X, ChevronDown, List, Map as MapIcon } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronDown, List, Map as MapIcon, Info } from 'lucide-react'
 import type { MapBounds } from '@/components/map/ShopMap'
 
 const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
@@ -79,6 +81,8 @@ export default function ShopsPage() {
   const [view, setView] = useState<View>('list')
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
+  const [mobileListOpen, setMobileListOpen] = useState(false)
   const isFirstFilterRun = useRef(true)
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
@@ -242,6 +246,8 @@ export default function ShopsPage() {
       s.lng <= mapBounds.east &&
       s.lng >= mapBounds.west)
   const visibleInMap = view === 'map' ? filtered.filter(inBounds) : []
+  // 絞り込みで対象外になった店舗は選択解除扱いにする
+  const selectedShop = selectedShopId ? filtered.find((s) => s.id === selectedShopId) ?? null : null
 
   const visibleShops = filtered.slice(0, visibleCount)
   const areaLabel = prefectureFilter ?? expandedRegion
@@ -410,6 +416,12 @@ export default function ShopsPage() {
   )
 
   if (view === 'map') {
+    const selectShopFromList = (shop: ShopListItem) => {
+      setSelectedShopId(shop.id)
+      setFocusTarget({ shop, ts: Date.now() })
+      setMobileListOpen(false)
+    }
+
     return (
       <div className="h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-bottom))] flex flex-col">
         {header}
@@ -421,12 +433,82 @@ export default function ShopsPage() {
                 shops={filtered}
                 visibleCount={visibleInMap.length}
                 onBoundsChange={setMapBounds}
+                onShopSelect={(shop) => setSelectedShopId(shop.id)}
+                onMapClick={() => setSelectedShopId(null)}
                 focusShop={focusTarget?.shop}
                 focusToken={focusTarget?.ts}
                 fitShops={areaShops}
+                selectedShopId={selectedShop?.id ?? null}
+                highlightFormat={selectedFormat}
               />
             )}
+
+            <MapLegend format={selectedFormat} />
+
+            {/* ピンを選んだ店舗のプレビュー */}
+            {selectedShop ? (
+              <div className="absolute z-[1000] bottom-3 inset-x-3 md:right-auto md:w-96">
+                <div className="relative shadow-lg rounded-xl">
+                  <ShopCard shop={selectedShop} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShopId(null)}
+                    aria-label="閉じる"
+                    className="absolute -top-3 -right-1 w-8 h-8 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-500"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMobileListOpen(true)}
+                className="md:hidden absolute z-[1000] bottom-4 left-1/2 -translate-x-1/2 h-11 px-4 rounded-full bg-white shadow-lg border border-gray-200 text-sm font-bold text-gray-900 inline-flex items-center gap-2 whitespace-nowrap"
+              >
+                <List size={16} />
+                この範囲の店舗 <span className="tabular-nums">{visibleInMap.length}</span>件
+              </button>
+            )}
+
+            {/* スマホ：表示範囲内の店舗リスト（下から引き出す） */}
+            {mobileListOpen && (
+              <div className="md:hidden absolute z-[1001] inset-x-0 bottom-0 h-[65%] bg-gray-50 rounded-t-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.18)] flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setMobileListOpen(false)}
+                  className="flex-shrink-0 bg-white rounded-t-2xl border-b px-4 pt-2 pb-3 flex flex-col items-center gap-2"
+                  aria-label="リストを閉じる"
+                >
+                  <span className="h-1 w-9 rounded-full bg-gray-200" />
+                  <span className="w-full flex items-center justify-between text-sm">
+                    <span className="font-bold text-gray-900">
+                      この範囲の店舗 <span className="tabular-nums">{visibleInMap.length}</span>件
+                    </span>
+                    <ChevronDown size={18} className="text-gray-500" />
+                  </span>
+                </button>
+                <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                  {visibleInMap.length === 0 ? (
+                    <div className="text-center text-gray-500 text-sm py-8">この範囲に店舗はありません</div>
+                  ) : (
+                    visibleInMap.slice(0, 100).map((shop) => (
+                      <ShopCard
+                        key={shop.id}
+                        shop={shop}
+                        isPr={shop.is_premium && shop.pr_enabled}
+                        onClick={() => selectShopFromList(shop)}
+                      />
+                    ))
+                  )}
+                  {visibleInMap.length > 100 && (
+                    <p className="text-center text-xs text-gray-500 py-2">地図を拡大すると、残り{visibleInMap.length - 100}件も表示されます</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
           {/* PC幅では地図の右に表示範囲内の店舗を並べる */}
           <div className="hidden md:block w-80 border-l bg-gray-50 overflow-y-auto">
             <div className="px-3 py-2 text-xs text-gray-600 border-b bg-white">
@@ -442,7 +524,7 @@ export default function ShopsPage() {
                     shop={shop}
                     isPr={shop.is_premium && shop.pr_enabled}
                     showPrefecture={false}
-                    onClick={() => setFocusTarget({ shop, ts: Date.now() })}
+                    onClick={() => selectShopFromList(shop)}
                   />
                 ))
               )}
@@ -554,5 +636,50 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
+  )
+}
+
+function MapLegend({ format }: { format: string | null }) {
+  const [open, setOpen] = useState(false)
+
+  if (format) {
+    return (
+      <div className="absolute z-[1000] top-3 left-3 max-w-[calc(100%-5rem)] bg-white/95 rounded-xl shadow-md border border-gray-200 px-3 py-2 text-xs text-gray-700 flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: FORMAT_HEX[format] }} />
+        数字＝{FORMAT_LABELS[format]}の週の開催回数
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute z-[1000] top-3 left-3 max-w-[calc(100%-5rem)] bg-white/95 rounded-xl shadow-md border border-gray-200 text-xs text-gray-700">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="px-3 py-2 flex items-center gap-1.5"
+      >
+        <Info size={14} className="text-gray-400" />
+        数字＝週のイベント数
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5 flex flex-col gap-1.5">
+          <div className="text-gray-500">色＝その店で一番多いフォーマット</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {FORMATS.map((f) => (
+              <span key={f.key} className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: FORMAT_HEX[f.key] }} />
+                {f.label}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+              イベントなし
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
