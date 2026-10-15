@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { Star } from 'lucide-react'
 
 type Props = {
   shopId: string
+  // bar: 店舗詳細の下部アクションバー用の四角いボタン
+  variant?: 'default' | 'bar'
 }
 
-export default function FavoriteButton({ shopId }: Props) {
+export default function FavoriteButton({ shopId, variant = 'default' }: Props) {
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [favorited, setFavorited] = useState(false)
@@ -64,6 +67,22 @@ export default function FavoriteButton({ shopId }: Props) {
       setFavorited(!next)
     }
     setPending(false)
+  }
+
+  if (variant === 'bar') {
+    return (
+      <button
+        onClick={toggle}
+        disabled={pending || loading}
+        aria-pressed={favorited}
+        aria-label={favorited ? 'お気に入りから外す' : 'お気に入りに追加'}
+        className={`h-11 w-11 flex-shrink-0 rounded-xl border flex items-center justify-center transition-colors disabled:opacity-50 ${
+          favorited ? 'border-yellow-300 bg-yellow-50 text-yellow-500' : 'border-gray-200 text-gray-400 hover:text-yellow-500'
+        }`}
+      >
+        <Star size={22} className={favorited ? 'fill-yellow-400' : ''} />
+      </button>
+    )
   }
 
   if (loading) return null

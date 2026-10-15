@@ -1,39 +1,72 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ShopListItem,
-  FORMAT_FILTER_OPTIONS as FORMATS,
-  RECOMMEND_SORT_OPTIONS as SORT_OPTIONS,
-} from '@/types'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import ShopCard from '@/components/shop/ShopCard'
+import { haversineDistanceKm } from '@/lib/geo'
+import {
+  jstDateKey,
+  jstTimeKey,
+  addDaysToKey,
+  weekdayOfKey,
+  formatDayHeading,
+} from '@/lib/eventTime'
+import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
+import FormatBadge from '@/components/ui/FormatBadge'
+import EventNotice from '@/components/shared/EventNotice'
+import Chip from '@/components/ui/Chip'
 import AuthStatus from '@/components/auth/AuthStatus'
-import { computeRecommendScores } from '@/lib/recommend'
+import { LocateFixed, MapPin, X, Store } from 'lucide-react'
 
-const REGIONS = [
-  { name: '北海道・東北', prefectures: ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県'] },
-  { name: '関東', prefectures: ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県'] },
-  { name: '甲信越・北陸', prefectures: ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県'] },
-  { name: '東海', prefectures: ['岐阜県', '静岡県', '愛知県', '三重県'] },
-  { name: '関西', prefectures: ['滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県'] },
-  { name: '中国', prefectures: ['鳥取県', '島根県', '岡山県', '広島県', '山口県'] },
-  { name: '四国', prefectures: ['徳島県', '香川県', '愛媛県', '高知県'] },
-  { name: '九州・沖縄', prefectures: ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'] },
-]
+const RADIUS_OPTIONS = [
+  { key: '3', label: '3km', km: 3 },
+  { key: '5', label: '5km', km: 5 },
+  { key: '10', label: '10km', km: 10 },
+  { key: 'all', label: '制限なし', km: null },
+] as const
 
-const PAGE_SIZE = 20
+type RadiusKey = (typeof RADIUS_OPTIONS)[number]['key']
 
-const FILTERS_STORAGE_KEY = 'shoptutor_home_filters'
+const PERIODS = [
+  { key: 'today', label: '今日' },
+  { key: 'tomorrow', label: '明日' },
+  { key: 'weekend', label: '今週末' },
+  { key: 'week', label: '7日間' },
+] as const
+
+type PeriodKey = (typeof PERIODS)[number]['key']
+
+// Supabaseの1回の取得上限（既定1000件）を超えないよう、ページ単位で取得する
+const PAGE_SIZE = 50
+
+type ShopInfo = {
+  id: string
+  name: string
+  prefecture: string
+  lat: number | null
+  lng: number | null
+}
+
+type EventItem = {
+  id: string
+  shop_id: string
+  title: string
+  format: string
+  held_at: string
+  start_time: string | null
+}
+
+const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters'
+// 「現在地を使う」を一度押したユーザーは、次回以降は説明カードを出さずに位置情報を取得する
+const LOCATION_OPT_IN_KEY = 'shoptutor_location_opt_in'
+const LOCATION_SKIPPED_KEY = 'shoptutor_location_skipped'
+
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'skipped' | 'unsupported'
 
 function loadSavedFilters(): {
-  prefectureFilter: string | null
-  expandedRegion: string | null
+  radiusKey: RadiusKey
   selectedFormat: string | null
-  wpnOnly: boolean
-  meisterOnly: boolean
-  searchQuery: string
-  visibleCount: number
+  period: PeriodKey
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -44,328 +77,494 @@ function loadSavedFilters(): {
   }
 }
 
+// 期間の開始日・終了日（JSTの日付キー）
+function periodRange(period: PeriodKey): { from: string; to: string } {
+  const today = jstDateKey()
+  if (period === 'today') return { from: today, to: today }
+  if (period === 'tomorrow') {
+    const tomorrow = addDaysToKey(today, 1)
+    return { from: tomorrow, to: tomorrow }
+  }
+  if (period === 'weekend') {
+    const weekday = weekdayOfKey(today)
+    if (weekday === 0) return { from: today, to: today }
+    const saturday = addDaysToKey(today, 6 - weekday)
+    return { from: saturday, to: addDaysToKey(saturday, 1) }
+  }
+  return { from: today, to: addDaysToKey(today, 6) }
+}
+
 export default function HomePage() {
-  const [shops, setShops] = useState<ShopListItem[]>([])
-  const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
-  const [filtered, setFiltered] = useState<ShopListItem[]>([])
-  const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
-  const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle')
+  const [radiusKey, setRadiusKey] = useState<RadiusKey>('5')
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
-  const [selectedSort, setSelectedSort] = useState('recommended')
-  const [wpnOnly, setWpnOnly] = useState(false)
-  const [meisterOnly, setMeisterOnly] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [formatFromProfile, setFormatFromProfile] = useState(false)
+  const [period, setPeriod] = useState<PeriodKey>('today')
   const [filtersRestored, setFiltersRestored] = useState(false)
+  const [shops, setShops] = useState<ShopInfo[] | null>(null)
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [totalCount, setTotalCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const isFirstFilterRun = useRef(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const requestIdRef = useRef(0)
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
   // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
   useEffect(() => {
     const saved = loadSavedFilters()
     if (saved) {
-      setPrefectureFilter(saved.prefectureFilter ?? null)
-      setExpandedRegion(saved.expandedRegion ?? null)
+      setRadiusKey(saved.radiusKey ?? '5')
       setSelectedFormat(saved.selectedFormat ?? null)
-      setWpnOnly(saved.wpnOnly ?? false)
-      setMeisterOnly(saved.meisterOnly ?? false)
-      setSearchQuery(saved.searchQuery ?? '')
-      setVisibleCount(saved.visibleCount ?? PAGE_SIZE)
+      setPeriod(saved.period ?? 'today')
+      setFiltersRestored(true)
+      return
     }
-    setFiltersRestored(true)
+    // 保存済みの条件がなければ、ログインユーザーのメインフォーマットで最初から絞り込む
+    const preselectMainFormat = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('main_format')
+            .eq('id', user.id)
+            .maybeSingle()
+          const mainFormat = profile?.main_format
+          if (mainFormat && FORMATS.some((f) => f.key === mainFormat)) {
+            setSelectedFormat(mainFormat)
+            setFormatFromProfile(true)
+          }
+        }
+      } finally {
+        setFiltersRestored(true)
+      }
+    }
+    preselectMainFormat()
   }, [])
-
-  useEffect(() => {
-    const fetchShops = async () => {
-      const supabase = createClient()
-      const [{ data }, { data: favData }] = await Promise.all([
-        supabase
-          .from('shops')
-          .select(
-            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
-          )
-          .eq('status', 'active'),
-        supabase.from('shop_favorites').select('shop_id'),
-      ])
-      if (data) {
-        setShops(data)
-        setFiltered(data)
-      }
-      if (favData) {
-        const counts = new Map<string, number>()
-        favData.forEach((f) => counts.set(f.shop_id, (counts.get(f.shop_id) ?? 0) + 1))
-        setFavoriteCounts(counts)
-      }
-      setLoading(false)
-    }
-    fetchShops()
-  }, [])
-
-  const recommendScores = useMemo(
-    () => computeRecommendScores(shops, favoriteCounts),
-    [shops, favoriteCounts]
-  )
-
-  const availablePrefectureSet = useMemo(
-    () => new Set(shops.map((s) => s.prefecture)),
-    [shops]
-  )
-
-  const visibleRegions = useMemo(
-    () =>
-      REGIONS.map((r) => ({
-        name: r.name,
-        prefectures: r.prefectures.filter((p) => availablePrefectureSet.has(p)),
-      })).filter((r) => r.prefectures.length > 0),
-    [availablePrefectureSet]
-  )
-
-  useEffect(() => {
-    let result = [...shops]
-
-    if (prefectureFilter) {
-      result = result.filter((s) => s.prefecture === prefectureFilter)
-    } else if (expandedRegion) {
-      const region = REGIONS.find((r) => r.name === expandedRegion)
-      if (region) {
-        result = result.filter((s) => region.prefectures.includes(s.prefecture))
-      }
-    }
-
-    const query = searchQuery.trim().toLowerCase()
-    if (query) {
-      result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query) ||
-          s.prefecture.toLowerCase().includes(query) ||
-          s.address.toLowerCase().includes(query)
-      )
-    }
-
-    if (selectedFormat) {
-      const key = `${selectedFormat}_count`
-      result = result.filter((s) => (s as any)[key] > 0)
-    }
-
-    if (wpnOnly) {
-      result = result.filter((s) => s.is_wpn_premium)
-    }
-
-    if (meisterOnly) {
-      result = result.filter((s) => s.is_teaching_meister)
-    }
-
-    result.sort((a, b) => {
-      if (selectedSort === 'recommended') {
-        return (recommendScores.get(b.id) ?? 0) - (recommendScores.get(a.id) ?? 0)
-      }
-      if (selectedSort === 'event')  return b.weekly_event_count - a.weekly_event_count
-      if (selectedSort === 'rating') return (b.avg_total ?? 0) - (a.avg_total ?? 0)
-      return 0
-    })
-
-    setFiltered(result)
-    if (shops.length === 0) {
-      // データ取得前の初回パスでは何もしない
-    } else if (isFirstFilterRun.current) {
-      // データ取得後の最初のパスでは、復元したvisibleCountを維持する
-      isFirstFilterRun.current = false
-    } else {
-      setVisibleCount(PAGE_SIZE)
-    }
-  }, [shops, prefectureFilter, expandedRegion, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
 
   useEffect(() => {
     if (!filtersRestored) return
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({
-          prefectureFilter,
-          expandedRegion,
-          selectedFormat,
-          wpnOnly,
-          meisterOnly,
-          searchQuery,
-          visibleCount,
-        })
+        JSON.stringify({ radiusKey, selectedFormat, period })
       )
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, prefectureFilter, expandedRegion, selectedFormat, wpnOnly, meisterOnly, searchQuery, visibleCount])
+  }, [filtersRestored, radiusKey, selectedFormat, period])
 
-  const visibleShops = filtered.slice(0, visibleCount)
-  const formatLabel = FORMATS.find((f) => f.key === selectedFormat)?.label
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('unsupported')
+      return
+    }
+    setLocationStatus('requesting')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setLocationStatus('granted')
+        try {
+          localStorage.setItem(LOCATION_OPT_IN_KEY, '1')
+          localStorage.removeItem(LOCATION_SKIPPED_KEY)
+        } catch {
+          // 保存失敗は無視
+        }
+      },
+      () => setLocationStatus('denied')
+    )
+  }
+
+  const skipLocation = () => {
+    setLocationStatus('skipped')
+    try {
+      localStorage.setItem(LOCATION_SKIPPED_KEY, '1')
+    } catch {
+      // 保存失敗は無視
+    }
+  }
+
+  // いきなり許可ダイアログを出さず、以前に許可済みの場合のみ自動で取得する
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationStatus('unsupported')
+      return
+    }
+    let optedIn = false
+    let skipped = false
+    try {
+      optedIn = localStorage.getItem(LOCATION_OPT_IN_KEY) === '1'
+      skipped = localStorage.getItem(LOCATION_SKIPPED_KEY) === '1'
+    } catch {
+      // 読み込み失敗は未設定として扱う
+    }
+    if (optedIn) {
+      requestLocation()
+      return
+    }
+    if (skipped) {
+      setLocationStatus('skipped')
+      return
+    }
+    navigator.permissions
+      ?.query({ name: 'geolocation' })
+      .then((result) => {
+        if (result.state === 'granted') requestLocation()
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const loadShops = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('shops')
+        .select('id, name, prefecture, lat, lng')
+        .eq('status', 'active')
+      setShops(data ?? [])
+    }
+    loadShops()
+  }, [])
+
+  const radiusKm = RADIUS_OPTIONS.find((r) => r.key === radiusKey)?.km ?? null
+  const isRadiusLimited = location !== null && radiusKm !== null
+
+  // 現在地からの距離と、半径内の店舗
+  const { shopById, targetShopIds } = useMemo(() => {
+    const byId = new Map<string, ShopInfo & { distance: number | null }>()
+    const ids: string[] = []
+    ;(shops ?? []).forEach((s) => {
+      const distance =
+        location && s.lat !== null && s.lng !== null
+          ? haversineDistanceKm(location.lat, location.lng, s.lat, s.lng)
+          : null
+      byId.set(s.id, { ...s, distance })
+      if (location && radiusKm !== null && (distance === null || distance > radiusKm)) return
+      ids.push(s.id)
+    })
+    return { shopById: byId, targetShopIds: ids }
+  }, [shops, location, radiusKm])
+
+  const fetchPage = useCallback(
+    async (offset: number) => {
+      const supabase = createClient()
+      const { from, to } = periodRange(period)
+      const today = jstDateKey()
+
+      let query = supabase
+        .from('events')
+        .select('id, shop_id, title, format, held_at, start_time, shops!inner(status)', { count: 'exact' })
+        .gte('held_at', from)
+        .lte('held_at', to)
+
+      // 半径で絞る場合は対象店舗のIDで、全国の場合は店舗のstatusで絞る
+      // （全国分のIDを並べるとURLが長くなりすぎるため）
+      if (isRadiusLimited) {
+        query = query.in('shop_id', targetShopIds)
+      } else {
+        query = query.eq('shops.status', 'active')
+      }
+
+      // 今日の分は、開始時刻を過ぎたイベントを除く（時刻不明のものは残す）
+      if (from === today) {
+        query = query.or(`held_at.gt.${today},start_time.gte.${jstTimeKey()},start_time.is.null`)
+      }
+
+      if (selectedFormat === 'other') {
+        query = query.in('format', OTHER_FORMAT_KEYS)
+      } else if (selectedFormat) {
+        query = query.eq('format', selectedFormat)
+      }
+
+      return query
+        .order('held_at', { ascending: true })
+        .order('start_time', { ascending: true, nullsFirst: false })
+        .order('id', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1)
+    },
+    [period, selectedFormat, targetShopIds, isRadiusLimited]
+  )
+
+  useEffect(() => {
+    // 保存済み条件・メインフォーマットの反映が終わるまでは取得しない（二重取得とチラつき防止）
+    if (!filtersRestored || shops === null) return
+    const requestId = ++requestIdRef.current
+
+    const load = async () => {
+      setLoading(true)
+      if (targetShopIds.length === 0) {
+        setEvents([])
+        setTotalCount(0)
+        setLoading(false)
+        return
+      }
+      const { data, count } = await fetchPage(0)
+      if (requestId !== requestIdRef.current) return
+      setEvents(data ?? [])
+      setTotalCount(count ?? null)
+      setLoading(false)
+    }
+    load()
+  }, [filtersRestored, shops, targetShopIds, fetchPage])
+
+  const loadMore = async () => {
+    const requestId = requestIdRef.current
+    setLoadingMore(true)
+    const { data } = await fetchPage(events.length)
+    if (requestId === requestIdRef.current) {
+      setEvents((prev) => [...prev, ...(data ?? [])])
+    }
+    setLoadingMore(false)
+  }
+
+  // 日付ごとにまとめる（取得時点で日付→開始時刻の順に並んでいる）
+  const groups = useMemo(() => {
+    const result: { date: string; items: EventItem[] }[] = []
+    events.forEach((e) => {
+      const last = result[result.length - 1]
+      if (last && last.date === e.held_at) last.items.push(e)
+      else result.push({ date: e.held_at, items: [e] })
+    })
+    return result
+  }, [events])
+
+  const showLocationPrompt = !location && (locationStatus === 'idle' || locationStatus === 'requesting')
+  const hasMore = totalCount !== null && events.length < totalCount
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      {/* ヘッダー */}
-      <div className="bg-white border-b px-4 py-2 flex items-center gap-3 sticky top-0 z-10">
-        <div className="font-bold text-base text-gray-800">ShopTutor</div>
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="店舗名・エリアで検索"
-          className="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
-        />
-        <AuthStatus />
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-lg mx-auto px-4 pt-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-blue-600 tracking-wide">ShopTutor</div>
+            <h1 className="font-bold text-lg text-gray-900 leading-tight">どこで遊ぶ？</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {location ? (
+              <label className="inline-flex items-center gap-1 h-8 pl-2.5 pr-1 rounded-full border border-gray-200 text-xs text-gray-700">
+                <MapPin size={14} className="text-blue-600" />
+                現在地から
+                <select
+                  value={radiusKey}
+                  onChange={(e) => setRadiusKey(e.target.value as RadiusKey)}
+                  aria-label="現在地からの距離"
+                  className="bg-transparent font-bold text-gray-900 focus:outline-none"
+                >
+                  {RADIUS_OPTIONS.map((r) => (
+                    <option key={r.key} value={r.key}>
+                      {r.km === null ? r.label : `${r.label}以内`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              !showLocationPrompt &&
+              locationStatus !== 'unsupported' && (
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="inline-flex items-center gap-1 h-8 px-3 rounded-full border border-gray-200 text-xs text-gray-700"
+                >
+                  <LocateFixed size={14} className="text-blue-600" />
+                  現在地を使う
+                </button>
+              )
+            )}
+            <AuthStatus />
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 pt-3">
+          <div className="flex bg-gray-100 rounded-xl p-1" role="group" aria-label="期間">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setPeriod(p.key)}
+                aria-pressed={period === p.key}
+                className={`flex-1 h-8 rounded-lg text-sm font-medium transition-colors ${
+                  period === p.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+          <Chip
+            selected={selectedFormat === null}
+            onClick={() => {
+              setSelectedFormat(null)
+              setFormatFromProfile(false)
+            }}
+          >
+            すべて
+          </Chip>
+          {FORMATS.map((f) => (
+            <Chip
+              key={f.key}
+              selected={selectedFormat === f.key}
+              onClick={() => {
+                setSelectedFormat(selectedFormat === f.key ? null : f.key)
+                setFormatFromProfile(false)
+              }}
+            >
+              {f.label}
+            </Chip>
+          ))}
+        </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
-        {/* エリアから探す */}
-        <div className="bg-white rounded-xl border p-3">
-          <div className="font-medium text-sm mb-2">📍 エリアから探す</div>
-          <div className="flex flex-wrap gap-1.5">
-            {visibleRegions.map((region) => (
-              <button
-                key={region.name}
-                onClick={() => setExpandedRegion(expandedRegion === region.name ? null : region.name)}
-                className={`px-3 py-1.5 rounded-full text-xs border whitespace-nowrap transition-colors ${
-                  expandedRegion === region.name
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : region.prefectures.includes(prefectureFilter ?? '')
-                      ? 'bg-blue-50 border-blue-400 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-600'
-                }`}
-              >
-                {region.name}
-              </button>
-            ))}
-          </div>
-
-          {expandedRegion && (
-            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-              {visibleRegions
-                .find((r) => r.name === expandedRegion)
-                ?.prefectures.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPrefectureFilter(prefectureFilter === p ? null : p)}
-                    className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-                      prefectureFilter === p
-                        ? 'bg-blue-50 border-blue-400 text-blue-700'
-                        : 'bg-white border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
+      <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
+        {showLocationPrompt && (
+          <div className="bg-white border rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <LocateFixed size={20} />
+              </span>
+              <div className="font-bold text-sm text-gray-900">近くのイベントから表示します</div>
             </div>
-          )}
-        </div>
-
-        {/* フォーマットから探す */}
-        <div className="bg-white rounded-xl border p-3">
-          <div className="font-medium text-sm mb-2">🎴 フォーマットから探す</div>
-          <div className="flex flex-wrap gap-1.5">
-            {FORMATS.map((f) => (
+            <p className="text-xs text-gray-600 leading-relaxed">
+              現在地は店舗までの距離の計算だけに使い、保存しません。使わない場合は全国のイベントを表示します。
+            </p>
+            <div className="grid grid-cols-2 gap-2">
               <button
-                key={f.key}
-                onClick={() => setSelectedFormat(selectedFormat === f.key ? null : f.key)}
-                className={`px-3 py-1.5 rounded-full text-xs border whitespace-nowrap transition-colors ${
-                  selectedFormat === f.key
-                    ? 'bg-blue-50 border-blue-400 text-blue-700'
-                    : 'bg-white border-gray-200 text-gray-600'
-                }`}
+                type="button"
+                onClick={skipLocation}
+                className="h-11 rounded-xl border border-gray-200 text-sm font-bold text-gray-700"
               >
-                {f.label}
+                全国で見る
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 現在の絞り込み＋二次フィルター */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {(prefectureFilter || expandedRegion || formatLabel) && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {prefectureFilter ? (
-                <button
-                  onClick={() => setPrefectureFilter(null)}
-                  className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
-                >
-                  {prefectureFilter} ✕
-                </button>
-              ) : (
-                expandedRegion && (
-                  <button
-                    onClick={() => setExpandedRegion(null)}
-                    className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
-                  >
-                    {expandedRegion} ✕
-                  </button>
-                )
-              )}
-              {formatLabel && (
-                <button
-                  onClick={() => setSelectedFormat(null)}
-                  className="px-2.5 py-1 rounded-full text-xs bg-blue-600 text-white flex items-center gap-1"
-                >
-                  {formatLabel} ✕
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={requestLocation}
+                disabled={locationStatus === 'requesting'}
+                className="h-11 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
+              >
+                <LocateFixed size={16} />
+                {locationStatus === 'requesting' ? '取得中...' : '現在地を使う'}
+              </button>
             </div>
-          )}
-          <button
-            onClick={() => setWpnOnly(!wpnOnly)}
-            className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              wpnOnly
-                ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
-          >
-            WPNプレミアム
-          </button>
-          <button
-            onClick={() => setMeisterOnly(!meisterOnly)}
-            className={`px-2.5 py-1 rounded-full text-xs border whitespace-nowrap transition-colors ${
-              meisterOnly
-                ? 'bg-orange-50 border-orange-400 text-orange-700'
-                : 'bg-white border-gray-200 text-gray-600'
-            }`}
-          >
-            マイスター
-          </button>
-          <select
-            value={selectedSort}
-            onChange={(e) => setSelectedSort(e.target.value)}
-            className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 店舗一覧 */}
-        <div>
-          <div className="text-xs text-gray-500 mb-2">
-            {prefectureFilter ?? expandedRegion ?? '全国'}のおすすめ店舗　{filtered.length}件
           </div>
+        )}
 
-          {loading ? (
-            <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center text-gray-400 text-sm py-8">店舗が見つかりませんでした</div>
-          ) : (
-            <>
-              <div className="flex flex-col gap-2">
-                {visibleShops.map((shop) => (
-                  <ShopCard key={shop.id} shop={shop} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
-                ))}
-              </div>
-              {filtered.length > visibleCount && (
-                <button
-                  onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
-                  className="w-full text-center text-sm text-blue-600 hover:underline mt-4 py-2"
-                >
-                  もっと見る
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        {locationStatus === 'denied' && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+            位置情報を取得できませんでした。全国のイベントを表示しています。端末の設定で位置情報を許可すると、近くのイベントに絞り込めます。
+          </p>
+        )}
+
+        {formatFromProfile && selectedFormat && (
+          <div className="flex items-center gap-2 text-xs bg-green-50 text-green-800 rounded-lg px-3 py-2">
+            <span className="flex-1">
+              メインフォーマット（{FORMAT_LABELS[selectedFormat]}）で絞り込んでいます
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFormat(null)
+                setFormatFromProfile(false)
+              }}
+              className="inline-flex items-center gap-0.5 font-medium text-green-900"
+            >
+              解除
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        <EventNotice />
+
+        {!loading && totalCount !== null && totalCount > 0 && (
+          <div className="text-xs text-gray-600">
+            {location && radiusKm !== null ? `現在地から${radiusKm}km以内` : '全国'}のイベント{' '}
+            <span className="font-bold text-gray-900 tabular-nums">{totalCount}</span>件（開始時刻順）
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+        ) : events.length === 0 ? (
+          <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
+            該当するイベントが見つかりませんでした
+            {period !== 'week' && (
+              <button type="button" onClick={() => setPeriod('week')} className="text-blue-600 font-medium">
+                7日間で探す
+              </button>
+            )}
+            {location && radiusKey !== 'all' && (
+              <button type="button" onClick={() => setRadiusKey('all')} className="text-blue-600 font-medium">
+                距離の制限を外す
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {groups.map((group) => (
+              <section key={group.date} className="flex flex-col gap-2">
+                <h2 className="text-sm font-bold text-gray-900 pt-1">{formatDayHeading(group.date)}</h2>
+                {group.items.map((event) => {
+                  const shop = shopById.get(event.shop_id)
+                  return (
+                    <Link
+                      key={event.id}
+                      href={`/shops/${event.shop_id}`}
+                      className="bg-white rounded-xl border p-3 flex gap-3 hover:border-blue-300 transition-colors"
+                    >
+                      <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-gray-100 pr-3">
+                        <span className="text-base font-bold text-gray-900 tabular-nums">
+                          {event.start_time ?? '—'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="text-sm font-bold text-gray-900 truncate">{shop?.name}</div>
+                        <div className="text-xs text-gray-600 truncate">{event.title}</div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <FormatBadge format={event.format} size="sm" />
+                          <span className="truncate">
+                            {shop?.prefecture}
+                            {shop?.distance !== null && shop?.distance !== undefined && (
+                              <span className="tabular-nums"> · {shop.distance.toFixed(1)}km</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </section>
+            ))}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full h-11 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {loadingMore ? '読み込み中...' : `もっと見る（残り${totalCount - events.length}件）`}
+              </button>
+            )}
+          </>
+        )}
+
+        <Link
+          href="/shops"
+          className="mt-2 flex items-center gap-3 bg-white border rounded-xl p-3 hover:border-blue-300"
+        >
+          <span className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0">
+            <Store size={20} />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-bold text-gray-900">店舗から探す</span>
+            <span className="block text-xs text-gray-500">エリア・地図・評価で全国の公認店舗を探せます</span>
+          </span>
+        </Link>
       </div>
     </div>
   )

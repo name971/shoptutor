@@ -126,8 +126,8 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border p-3">
-      <div className="font-medium text-sm mb-3">店舗写真</div>
+    <div className="bg-white rounded-xl border p-4">
+      <h2 className="font-bold text-base text-gray-900 mb-3">写真</h2>
 
       {visible.length > 0 && (
         <div className="grid grid-cols-3 gap-2 mb-3">
@@ -137,7 +137,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
               {userId === photo.user_id && (
                 <button
                   onClick={() => handleDelete(photo.id)}
-                  className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-white/90 text-red-500"
+                  className="absolute top-1 right-1 text-[11px] px-2 py-0.5 rounded-full bg-white/90 text-red-500"
                 >
                   削除
                 </button>
@@ -145,7 +145,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
               <button
                 onClick={() => toggleLike(photo.id)}
                 disabled={pending.has(photo.id)}
-                className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-white/90 flex items-center gap-0.5 disabled:opacity-50 ${
+                className={`absolute bottom-1 right-1 text-[11px] px-2 py-0.5 rounded-full bg-white/90 flex items-center gap-0.5 disabled:opacity-50 ${
                   likedIds.has(photo.id) ? 'text-red-500' : 'text-gray-500'
                 }`}
               >

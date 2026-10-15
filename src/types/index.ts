@@ -123,6 +123,18 @@ export const FORMAT_COLORS: Record<string, { bg: string; text: string }> = {
   other:     { bg: 'bg-gray-100',   text: 'text-gray-700' },
 }
 
+// カード左端の帯・地図ピンなど、Tailwindクラスでは表現しにくい箇所で使う色
+export const FORMAT_HEX: Record<string, string> = {
+  commander: '#7c3aed',
+  standard:  '#2563eb',
+  modern:    '#16a34a',
+  pioneer:   '#0d9488',
+  legacy:    '#dc2626',
+  limited:   '#d97706',
+  vintage:   '#db2777',
+  other:     '#9ca3af',
+}
+
 // 店舗・イベントのフォーマット絞り込みチップ（ヴィンテージは対象外）
 export const FORMAT_FILTER_OPTIONS = [
   { key: 'commander', label: 'コマンダー' },

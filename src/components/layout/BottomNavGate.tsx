@@ -10,7 +10,8 @@ export default function BottomNavGate() {
 
   const hidden =
     HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    /^\/shops\/[^/]+\/review$/.test(pathname)
+    // 店舗詳細は画面下に固定のアクションバー（お気に入り・レビュー・経路）を出すため非表示
+    /^\/shops\/[^/]+(\/review)?$/.test(pathname)
 
   if (hidden) return null
 

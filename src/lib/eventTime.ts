@@ -38,3 +38,46 @@ export function isEventPast(heldAt: string, startTime: string | null): boolean {
   const currentTime = `${p.hour}:${p.minute}`
   return startTime < currentTime
 }
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+// "2026-10-17" → "今日" / "明日" / "10/17(金)"
+export function formatEventDate(heldAt: string): string {
+  if (heldAt === jstDateKey()) return '今日'
+  if (heldAt === jstDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))) return '明日'
+  const [y, m, d] = heldAt.split('-').map(Number)
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  return `${m}/${d}(${weekday})`
+}
+
+// 一覧表示用の「日付＋開始時刻」 例: "今日 19:00〜" / "10/17(金) 18:30〜" / "10/18(土)"
+export function formatEventWhen(heldAt: string, startTime: string | null): string {
+  const date = formatEventDate(heldAt)
+  return startTime ? `${date} ${startTime}〜` : date
+}
+
+// 現在時刻（JST）を "HH:MM" で返す。start_timeとの文字列比較に使う
+export function jstTimeKey(d: Date = new Date()): string {
+  const p = jstParts(d)
+  return `${p.hour}:${p.minute}`
+}
+
+// "YYYY-MM-DD" にn日足した日付キー（タイムゾーンの影響を受けないようUTCで計算）
+export function addDaysToKey(key: string, days: number): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
+}
+
+// "YYYY-MM-DD" の曜日（0=日〜6=土）
+export function weekdayOfKey(key: string): number {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+}
+
+// 日付見出し用 例: "10/15(水) 今日"
+export function formatDayHeading(key: string): string {
+  const [, m, d] = key.split('-').map(Number)
+  const base = `${m}/${d}(${WEEKDAYS[weekdayOfKey(key)]})`
+  const relative = formatEventDate(key)
+  return relative === '今日' || relative === '明日' ? `${base} ${relative}` : base
+}

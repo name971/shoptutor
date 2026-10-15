@@ -424,7 +424,7 @@ export default function MyPage() {
                           <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
                         </div>
                       </Link>
-                      <div className="p-1.5 flex items-center justify-between text-[10px] text-gray-500">
+                      <div className="p-1.5 flex items-center justify-between text-[11px] text-gray-500">
                         <span className="truncate flex-1">{photo.shops?.name}</span>
                         <button
                           onClick={() => handleDeletePhoto(photo.id)}

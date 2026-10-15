@@ -12,32 +12,93 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ダークモードは未対応のためライト表示に固定する。
+   各コンポーネントがbg-white等を直接指定しているため、本文色だけダーク用に切り替わると
+   白背景に白文字となり読めなくなる */
+:root {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
 }
 
 .shop-name-label {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 500;
-  color: #374151;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
   white-space: nowrap;
   pointer-events: none;
 }
 
 .shop-name-label::before {
+  display: none;
+}
+
+/* 広域表示では店名ラベルを隠し、ピンだけにする（ShopMapがズームに応じて付け外し） */
+.map-labels-hidden .shop-name-label {
+  display: none;
+}
+
+/* 地図タイルの彩度を落とし、フォーマット色のピンを目立たせる */
+.shop-map .leaflet-tile-pane {
+  filter: saturate(0.35) brightness(1.04);
+}
+
+.shop-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shop-pin-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--pin);
+  border: 2px solid #fff;
+  color: #fff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.shop-pin-tip {
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--pin);
+}
+
+.shop-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.18), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* 横スクロールのチップ列でスクロールバーを隠す */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { ReviewWithLikes } from '@/types'
 import StarRating from '@/components/ui/StarRating'
 import ReviewList from './ReviewList'
+import { PenLine } from 'lucide-react'
 
 type RatingAverage = {
   key: string
@@ -21,11 +21,9 @@ type Props = {
 }
 
 export default function ReviewSection({ shopId, avgTotal, reviewCount, ratingAverages, reviews }: Props) {
-  const [expanded, setExpanded] = useState(false)
-
   return (
-    <div className="bg-white rounded-xl border p-3">
-      <div className="font-medium text-sm mb-3">レビュー概要</div>
+    <div className="bg-white rounded-xl border p-4">
+      <h2 className="font-bold text-base text-gray-900 mb-3">レビュー</h2>
 
       {reviewCount === 0 ? (
         <div className="text-xs text-gray-400 mb-3">まだレビューがありません</div>
@@ -41,7 +39,7 @@ export default function ReviewSection({ shopId, avgTotal, reviewCount, ratingAve
           <div className="flex-1 flex flex-col gap-1.5">
             {ratingAverages.map((r) => (
               <div key={r.key} className="flex items-center gap-2">
-                <div className="text-xs text-gray-500 w-28 flex-shrink-0">{r.label}</div>
+                <div className="text-xs text-gray-600 w-28 flex-shrink-0">{r.label}</div>
                 <div className="flex-1 bg-gray-100 rounded-full h-1.5">
                   <div
                     className="bg-blue-400 rounded-full h-1.5"
@@ -57,24 +55,17 @@ export default function ReviewSection({ shopId, avgTotal, reviewCount, ratingAve
         </div>
       )}
 
-      <div className="flex gap-2">
+      {reviewCount === 0 && (
         <Link
           href={`/shops/${shopId}/review`}
-          className="flex-1 text-center bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center justify-center gap-1.5 h-11 border border-blue-600 text-blue-700 text-sm font-bold rounded-xl hover:bg-blue-50 transition-colors"
         >
-          ✏️ レビューする
+          <PenLine size={16} />
+          最初のレビューを書く
         </Link>
-        {reviews.length > 0 && (
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="flex-1 text-center border border-gray-200 text-gray-700 text-sm font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            {expanded ? '閉じる ▲' : `レビューを読む ▼`}
-          </button>
-        )}
-      </div>
+      )}
 
-      {expanded && (
+      {reviews.length > 0 && (
         <div className="mt-4 pt-4 border-t">
           <ReviewList reviews={reviews} />
         </div>
