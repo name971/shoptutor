@@ -54,7 +54,8 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - `photo_likes` - 写真いいね
 - `shop_favorites` - お気に入り店舗
 - `shop_next_events`（ビュー）- 店舗ごとの次のイベント（JSTで未開始の最も早いもの。security_invoker）
-- `shop_favorite_counts`（ビュー）- 店舗ごとのお気に入り数（おすすめ順の計算用。全お気に入り行を取らずに件数だけ取得）
+- `shop_favorite_counts`（ビュー）- 店舗ごとのお気に入り数（おすすめ順の計算用）。中身は関数`get_shop_favorite_counts()`（security definer・件数のみ返す）
+- `shop_favorites`のSELECTは本人の行だけ（RLS）。他人のお気に入りは件数としてしか取得できない
 
 ## フォーマット色分け
 - commander: Purple
@@ -169,6 +170,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - 情報量：カードは3段まで（店舗カード＝店名＋評価／次回イベント／場所・週回数・バッジ、イベント行＝店名＋距離／フォーマット＋イベント名）。説明文は1行に収める
 - グラフ（`components/charts/`）：店舗詳細のイベント欄に「遊ばれているフォーマット（100%積み上げ横棒）」と「日別の開催数（今後7日・単色の縦棒）」。どちらも押すと一覧を絞り込む。フォーマット色はCVD検証で一部の組（コマンダー/スタンダード、モダン/パイオニア）が見分けにくいため、色だけに頼らず名前入りチップを凡例として棒の直下に置く
 - 店舗詳細のヘッダー：最初は「店舗の詳細」と表示し、ページ内の店名（h1）がスクロールで隠れたら店名に切り替える（`DetailHeaderTitle`）
+- Supabase MCPでの注意：`DROP`を含むSQLはユーザー確認待ちになりタイムアウトしやすい。ポリシーは`ALTER POLICY`、ビュー・関数は`CREATE OR REPLACE`で変更する
 - 高速化：
   - `proxy.ts`はログイン確認に`getClaims()`（非対称鍵なら手元でJWT検証）を使い、オンボーディング済みかは一度DBで確認したらCookie`st_onboarded`（値＝ユーザーID）に覚えて以降は問い合わせない
   - `lib/clientCache.ts`でタブ移動時の再取得を防ぐ（店舗一覧・お気に入り数は5分、次回イベントは2分、店舗座標は10分）。戻ってきたときは`peekCached`で即表示
