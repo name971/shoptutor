@@ -34,7 +34,7 @@ export default function CoverPhotoGrid({ urls, alt }: Props) {
             className="relative aspect-square rounded-lg overflow-hidden border bg-gray-100"
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
-            <img src={url} alt={alt} className="w-full h-full object-cover" />
+            <img src={url} alt={alt} decoding="async" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>

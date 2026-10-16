@@ -15,6 +15,7 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
 import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
+import { cached, peekCached } from '@/lib/clientCache'
 import { getFormatCount } from '@/lib/shopFormat'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
@@ -47,6 +48,8 @@ const REGIONS = [
 const PAGE_SIZE = 20
 
 const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters'
+const SHOP_LIST_CACHE_KEY = 'shops:list'
+const FAVORITE_COUNTS_CACHE_KEY = 'shops:favorite-counts'
 
 function loadSavedFilters(): {
   prefectureFilter: string | null
@@ -68,10 +71,15 @@ function loadSavedFilters(): {
 }
 
 export default function ShopsPage() {
-  const [shops, setShops] = useState<ShopListItem[]>([])
-  const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
-  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(new Map())
-  const [filtered, setFiltered] = useState<ShopListItem[]>([])
+  // タブを移動して戻ってきたときは、保持している一覧ですぐ表示する（読み込み中を出さない）
+  const [shops, setShops] = useState<ShopListItem[]>(() => peekCached<ShopListItem[]>(SHOP_LIST_CACHE_KEY) ?? [])
+  const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(
+    () => peekCached<Map<string, number>>(FAVORITE_COUNTS_CACHE_KEY) ?? new Map()
+  )
+  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(
+    () => peekCached<Map<string, NextEvent>>('next-events') ?? new Map()
+  )
+  const [filtered, setFiltered] = useState<ShopListItem[]>(shops)
   const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
@@ -80,7 +88,7 @@ export default function ShopsPage() {
   const [meisterOnly, setMeisterOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filtersRestored, setFiltersRestored] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(shops.length === 0)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [view, setView] = useState<View>('list')
@@ -113,31 +121,34 @@ export default function ShopsPage() {
   }, [])
 
   useEffect(() => {
-    const fetchShops = async () => {
-      const supabase = createClient()
-      const [{ data }, { data: favData }, nextEventMap] = await Promise.all([
-        supabase
+    const supabase = createClient()
+    // 店舗一覧とお気に入り数は数分では変わらないため、タブを移動して戻ってきたときは保持分を使う
+    Promise.all([
+      cached(SHOP_LIST_CACHE_KEY, 5 * 60 * 1000, async () => {
+        const { data, error } = await supabase
           .from('shops')
           .select(
             'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
           )
-          .eq('status', 'active'),
-        supabase.from('shop_favorites').select('shop_id'),
-        fetchNextEvents(supabase),
-      ])
-      setNextEvents(nextEventMap)
-      if (data) {
-        setShops(data)
-        setFiltered(data)
-      }
-      if (favData) {
-        const counts = new Map<string, number>()
-        favData.forEach((f) => counts.set(f.shop_id, (counts.get(f.shop_id) ?? 0) + 1))
+          .eq('status', 'active')
+        if (error) throw error
+        return (data ?? []) as ShopListItem[]
+      }),
+      cached(FAVORITE_COUNTS_CACHE_KEY, 5 * 60 * 1000, async () => {
+        const { data, error } = await supabase.from('shop_favorite_counts').select('shop_id, favorite_count')
+        if (error) throw error
+        return new Map((data ?? []).map((r) => [r.shop_id as string, r.favorite_count as number]))
+      }).catch(() => new Map<string, number>()),
+      fetchNextEvents(supabase),
+    ])
+      .then(([list, counts, nextEventMap]) => {
+        setShops(list)
+        setFiltered(list)
         setFavoriteCounts(counts)
-      }
-      setLoading(false)
-    }
-    fetchShops()
+        setNextEvents(nextEventMap)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const recommendScores = useMemo(

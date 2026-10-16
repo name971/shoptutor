@@ -12,6 +12,7 @@ import DetailHeaderTitle from '@/components/shop/DetailHeaderTitle'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MapPin, ExternalLink, Navigation, PenLine, Star, Clock, SquareParking } from 'lucide-react'
@@ -24,14 +25,22 @@ type Props = {
 type ReviewRow = Omit<ReviewWithLikes, 'like_count'> & { review_likes: { count: number }[] | null }
 type PhotoRow = { id: string; url: string; user_id: string; photo_likes: { count: number }[] | null }
 
+// 店舗の取得。generateMetadata と本体で同じ店舗を2回問い合わせないよう、1回のリクエスト内で結果を共有する
+const getShop = cache(async (id: string) => {
+  const { data } = await createClient()
+    .from('shops')
+    .select(
+      'id, official_id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, other_count, review_count, avg_stock, avg_price, avg_playspace, avg_staff, avg_access, avg_total, weekly_event_count, cover_photo_urls, business_hours, parking_available, parking_note'
+    )
+    .eq('id', id)
+    .maybeSingle()
+  return data
+})
+
 // 店舗ごとのタイトル・説明文・共有時のプレビュー（検索結果やSNSで店名が出るように）
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
-  const { data: shop } = await createClient()
-    .from('shops')
-    .select('name, prefecture, address, review_count, avg_total, weekly_event_count, cover_photo_urls')
-    .eq('id', id)
-    .maybeSingle()
+  const shop = await getShop(id)
 
   if (!shop) return { title: '店舗が見つかりません' }
 
@@ -57,17 +66,10 @@ export default async function ShopDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = createClient()
 
-  // 店舗自体はshopがnullならnotFound()するため単独で先に取得し、
-  // それ以外（イベント・レビュー・写真）はidのみに依存するので並列に取得する
-  const [{ data: shop }, { data: events }, { data: reviewsData }, { data: photosData }] =
+  // 店舗・イベント・レビュー・写真はidのみに依存するので並列に取得する（店舗はgenerateMetadataと共有）
+  const [shop, { data: events }, { data: reviewsData }, { data: photosData }] =
     await Promise.all([
-      supabase
-        .from('shops')
-        .select(
-          'id, official_id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, other_count, review_count, avg_stock, avg_price, avg_playspace, avg_staff, avg_access, avg_total, weekly_event_count, cover_photo_urls, business_hours, parking_available, parking_note'
-        )
-        .eq('id', id)
-        .single(),
+      getShop(id),
       supabase
         .from('events')
         .select('id, shop_id, title, format, format_raw, held_at, start_time, prefecture')
