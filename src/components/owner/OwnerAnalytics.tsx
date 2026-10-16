@@ -127,7 +127,7 @@ function StackedChart({
   return (
     <div>
       <div className="flex gap-1.5">
-        <div className="flex flex-col justify-between h-16 text-[9px] text-gray-400 text-right w-5 flex-shrink-0">
+        <div className="flex flex-col justify-between h-16 text-[11px] text-gray-400 text-right w-5 flex-shrink-0">
           {gridLineCounts.map((n, i) => (
             <span key={i}>{n}</span>
           ))}
@@ -158,7 +158,7 @@ function StackedChart({
           </div>
         </div>
       </div>
-      <div className="flex text-[9px] text-gray-400 mt-1 ml-[26px]">
+      <div className="flex text-[11px] text-gray-400 mt-1 ml-[26px]">
         {labels.map((l, i) => (
           <span key={i} className="flex-1 text-center">{l}</span>
         ))}
@@ -272,7 +272,7 @@ export default function OwnerAnalytics() {
         </div>
         <div className="flex items-center gap-1.5 flex-wrap mb-2">
           {data.format_counts.map((f) => (
-            <span key={f.format} className="flex items-center gap-1 text-[9px] text-gray-500">
+            <span key={f.format} className="flex items-center gap-1 text-[11px] text-gray-500">
               <span
                 className="w-2 h-2 rounded-sm inline-block"
                 style={{ backgroundColor: FORMAT_CHART_COLORS[f.format] ?? '#9ca3af' }}
@@ -284,7 +284,7 @@ export default function OwnerAnalytics() {
 
         <div className="flex flex-col gap-3">
           <div>
-            <div className="text-[10px] text-gray-500 mb-1">時間帯別</div>
+            <div className="text-[11px] text-gray-500 mb-1">時間帯別</div>
             <StackedChart
               buckets={24}
               labels={HOUR_LABELS}
@@ -293,7 +293,7 @@ export default function OwnerAnalytics() {
             />
           </div>
           <div>
-            <div className="text-[10px] text-gray-500 mb-1">曜日別</div>
+            <div className="text-[11px] text-gray-500 mb-1">曜日別</div>
             <StackedChart
               buckets={7}
               labels={DOW_CHART_LABELS}
@@ -302,7 +302,7 @@ export default function OwnerAnalytics() {
             />
           </div>
         </div>
-        <p className="text-[10px] text-gray-400 mt-1">
+        <p className="text-[11px] text-gray-400 mt-1">
           ※ 棒の高さ＝そのフォーマットを{tone === 'main' ? 'メインに選んでいる' : 'サブに選んでいる'}訪問者の実人数
           {tone === 'sub' && '（サブを2つ登録している人は両方の棒に計上されるため、時間帯・曜日合計は実訪問者数を上回ることがあります）'}
         </p>
@@ -311,7 +311,7 @@ export default function OwnerAnalytics() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="text-xs text-gray-500">訪問者のよく遊ぶフォーマット</div>
-          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+          <div className="flex items-center gap-2 text-[11px] text-gray-500">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500 inline-block" />メイン</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-200 inline-block" />サブ</span>
           </div>
@@ -338,14 +338,14 @@ export default function OwnerAnalytics() {
                 <div className="text-xs font-medium w-10 text-right">{f.count}人</div>
               </div>
             ))}
-            <p className="text-[10px] text-gray-400 mt-0.5">
+            <p className="text-[11px] text-gray-400 mt-0.5">
               ※ 延べ人数（サブフォーマットも含む）。メインに選んでいる人が本命ファンの目安です
             </p>
           </div>
         )}
       </div>
 
-      <p className="text-[10px] text-gray-400">
+      <p className="text-[11px] text-gray-400">
         ※ ログイン済み訪問者の登録フォーマットを匿名集計したものです。個人を特定する情報は含まれません。
       </p>
     </div>

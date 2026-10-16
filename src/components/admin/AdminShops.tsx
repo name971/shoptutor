@@ -17,6 +17,12 @@ type Shop = {
   lng: number | null
 }
 
+async function fetchShops(query: string): Promise<Shop[]> {
+  const res = await fetch(`/api/admin/shops?q=${encodeURIComponent(query)}`)
+  const data = await res.json()
+  return data.shops ?? []
+}
+
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
   const [q, setQ] = useState('')
@@ -26,18 +32,20 @@ export default function AdminShops() {
   const [ownerEmail, setOwnerEmail] = useState('')
   const [editError, setEditError] = useState('')
 
-  const load = async (query: string) => {
-    setLoading(true)
-    const res = await fetch(`/api/admin/shops?q=${encodeURIComponent(query)}`)
-    const data = await res.json()
-    setShops(data.shops ?? [])
-    setLoading(false)
-  }
-
   useEffect(() => {
-    load('')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchShops('').then((list) => {
+      setShops(list)
+      setLoading(false)
+    })
   }, [])
+
+  const search = (query: string) => {
+    setLoading(true)
+    fetchShops(query).then((list) => {
+      setShops(list)
+      setLoading(false)
+    })
+  }
 
   const toggleStatus = async (shop: Shop) => {
     const nextStatus = shop.status === 'active' ? 'inactive' : 'active'
@@ -91,12 +99,12 @@ export default function AdminShops() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && load(q)}
+          onKeyDown={(e) => e.key === 'Enter' && search(q)}
           placeholder="店舗名で検索"
           className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2"
         />
         <button
-          onClick={() => load(q)}
+          onClick={() => search(q)}
           className="px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700"
         >
           検索
@@ -171,7 +179,7 @@ export default function AdminShops() {
                       placeholder="オーナーのメールアドレス（変更しない場合は空欄・「解除」で解除）"
                     />
                     {shop.owner_user_id && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">現在オーナー設定済み</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">現在オーナー設定済み</p>
                     )}
                   </div>
                   {editError && <p className="text-xs text-red-500">{editError}</p>}
@@ -190,12 +198,12 @@ export default function AdminShops() {
                     <div className="text-sm font-medium truncate flex items-center gap-1.5">
                       <span className="truncate">{shop.name}</span>
                       {shop.is_premium && (
-                        <span className="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                        <span className="text-[11px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
                           プレミアム
                         </span>
                       )}
                       {shop.is_premium && !shop.pr_enabled && (
-                        <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                        <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
                           PR OFF（オーナー設定）
                         </span>
                       )}

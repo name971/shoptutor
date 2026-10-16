@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { FORMAT_LABELS, FORMAT_COLORS, SUB_FORMAT_MAX, ReviewWithLikes } from '@/types'
+import { FORMAT_LABELS, SUB_FORMAT_MAX, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
+import FormatOptionButton from '@/components/ui/FormatOptionButton'
 import StarRating from '@/components/ui/StarRating'
 import BottomSheet from '@/components/ui/BottomSheet'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { SkeletonBlock, ShopCardSkeleton } from '@/components/ui/Skeleton'
 import {
   Pencil,
   Trash2,
@@ -25,6 +28,14 @@ const NAME_CHANGE_INTERVAL_DAYS = 30
 const PAGE_SIZE = 3
 
 type MyReview = ReviewWithLikes & { shops: { id: string; name: string } | null }
+
+// 写真1件の取得結果（店舗は多対1の結合なのでオブジェクト、いいね数は集計結果の配列で返る）
+type MyPhotoRow = {
+  id: string
+  url: string
+  shops: { id: string; name: string } | null
+  photo_likes: { count: number }[] | null
+}
 
 type MyPhoto = {
   id: string
@@ -50,6 +61,9 @@ export default function MyPage() {
   const [actionError, setActionError] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  // 名前変更の制限判定に使う現在時刻（描画のたびに変わらないよう、表示開始時に1回だけ取る）
+  const [now] = useState(() => Date.now())
+  const { confirm, confirmDialog } = useConfirm()
   const [message, setMessage] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [visibleReviewCount, setVisibleReviewCount] = useState(PAGE_SIZE)
@@ -90,7 +104,7 @@ export default function MyPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      const withLikes: MyReview[] = (reviewsData ?? []).map((r: any) => ({
+      const withLikes: MyReview[] = (reviewsData ?? []).map((r) => ({
         ...r,
         like_count: r.review_likes?.[0]?.count ?? 0,
       }))
@@ -103,7 +117,7 @@ export default function MyPage() {
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
 
-      const photosWithLikes: MyPhoto[] = (photosData ?? []).map((p: any) => ({
+      const photosWithLikes: MyPhoto[] = ((photosData ?? []) as unknown as MyPhotoRow[]).map((p) => ({
         id: p.id,
         url: p.url,
         shops: p.shops,
@@ -129,7 +143,7 @@ export default function MyPage() {
   }, [nameChangedAt])
 
   const nameChangeLocked =
-    name.trim() !== originalName && !!nameChangeAvailableAt && nameChangeAvailableAt.getTime() > Date.now()
+    name.trim() !== originalName && !!nameChangeAvailableAt && nameChangeAvailableAt.getTime() > now
 
   const selectMain = (format: string) => {
     setMainFormat(format)
@@ -197,7 +211,7 @@ export default function MyPage() {
 
   const handleDeletePhoto = async (photoId: string) => {
     if (!userId) return
-    if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
+    if (!(await confirm({ title: 'この写真を削除しますか？', message: 'この操作は取り消せません。', confirmLabel: '削除する', danger: true }))) return
 
     setActionError('')
     const supabase = createClient()
@@ -226,7 +240,7 @@ export default function MyPage() {
 
   const handleDeleteReview = async (reviewId: string) => {
     if (!userId) return
-    if (!window.confirm('このレビューを削除しますか？この操作は取り消せません。')) return
+    if (!(await confirm({ title: 'このレビューを削除しますか？', message: 'この操作は取り消せません。', confirmLabel: '削除する', danger: true }))) return
 
     const supabase = createClient()
     const { error: deleteError } = await supabase
@@ -249,12 +263,14 @@ export default function MyPage() {
   }
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm('アカウントを削除すると、レビュー・お気に入り・写真などすべてのデータが完全に削除され、元に戻せません。本当に削除しますか？')) {
-      return
-    }
-    if (!window.confirm('最終確認です。本当にアカウントを削除しますか？')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'アカウントを削除しますか？',
+      message: 'レビュー・お気に入り・写真など、すべてのデータが完全に削除され、元に戻せません。',
+      confirmLabel: 'アカウントを削除',
+      danger: true,
+      requireText: '削除',
+    })
+    if (!ok) return
 
     setDeleting(true)
     const res = await fetch('/api/account/delete', { method: 'POST' })
@@ -273,13 +289,6 @@ export default function MyPage() {
   if (checking) return null
 
   const displayName = originalName || 'プレイヤー'
-  const formatButtonClass = (selected: boolean, format: string) =>
-    `h-11 rounded-xl px-3 text-sm font-semibold transition-colors disabled:opacity-40 ${
-      selected
-        ? `${FORMAT_COLORS[format].bg} ${FORMAT_COLORS[format].text} ring-2 ring-inset ring-current`
-        : 'bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:ring-slate-300'
-    }`
-
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="app-header sticky top-0 z-10">
@@ -289,7 +298,18 @@ export default function MyPage() {
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+        <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4" role="status" aria-label="読み込み中">
+          <div className="surface overflow-hidden">
+            <SkeletonBlock className="h-16 rounded-none" />
+            <div className="p-5 flex flex-col gap-3">
+              <SkeletonBlock className="h-6 w-1/3" />
+              <SkeletonBlock className="h-4 w-1/2" />
+              <SkeletonBlock className="h-16 w-full rounded-2xl" />
+            </div>
+          </div>
+          <ShopCardSkeleton />
+          <ShopCardSkeleton />
+        </div>
       ) : (
         <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-6">
           {/* プロフィール */}
@@ -531,6 +551,8 @@ export default function MyPage() {
         </div>
       )}
 
+      {confirmDialog}
+
       <BottomSheet
         open={editOpen}
         title="プロフィールを編集"
@@ -566,15 +588,12 @@ export default function MyPage() {
           <h3 className="text-xs font-bold text-slate-500">メインフォーマット（1つ）</h3>
           <div className="grid grid-cols-2 gap-2">
             {Object.keys(FORMAT_LABELS).map((format) => (
-              <button
+              <FormatOptionButton
                 key={format}
-                type="button"
+                format={format}
+                selected={mainFormat === format}
                 onClick={() => selectMain(format)}
-                aria-pressed={mainFormat === format}
-                className={formatButtonClass(mainFormat === format, format)}
-              >
-                {FORMAT_LABELS[format]}
-              </button>
+              />
             ))}
           </div>
         </section>
@@ -589,16 +608,13 @@ export default function MyPage() {
               .map((format) => {
                 const isSelected = subFormats.includes(format)
                 return (
-                  <button
+                  <FormatOptionButton
                     key={format}
-                    type="button"
-                    onClick={() => toggleSub(format)}
+                    format={format}
+                    selected={isSelected}
                     disabled={!isSelected && subFormats.length >= SUB_FORMAT_MAX}
-                    aria-pressed={isSelected}
-                    className={formatButtonClass(isSelected, format)}
-                  >
-                    {FORMAT_LABELS[format]}
-                  </button>
+                    onClick={() => toggleSub(format)}
+                  />
                 )
               })}
           </div>

@@ -11,8 +11,11 @@ import {
 } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
+import { SkeletonList } from '@/components/ui/Skeleton'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
+import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
+import { getFormatCount } from '@/lib/shopFormat'
 import Chip from '@/components/ui/Chip'
 import BottomSheet from '@/components/ui/BottomSheet'
 import { Search, SlidersHorizontal, X, ChevronDown, List, Map as MapIcon, Info } from 'lucide-react'
@@ -66,6 +69,7 @@ function loadSavedFilters(): {
 export default function ShopsPage() {
   const [shops, setShops] = useState<ShopListItem[]>([])
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
+  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(new Map())
   const [filtered, setFiltered] = useState<ShopListItem[]>([])
   const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
@@ -90,6 +94,7 @@ export default function ShopsPage() {
   useEffect(() => {
     const saved = loadSavedFilters()
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setPrefectureFilter(saved.prefectureFilter ?? null)
       setExpandedRegion(saved.expandedRegion ?? null)
       setSelectedFormat(saved.selectedFormat ?? null)
@@ -109,7 +114,7 @@ export default function ShopsPage() {
   useEffect(() => {
     const fetchShops = async () => {
       const supabase = createClient()
-      const [{ data }, { data: favData }] = await Promise.all([
+      const [{ data }, { data: favData }, nextEventMap] = await Promise.all([
         supabase
           .from('shops')
           .select(
@@ -117,7 +122,9 @@ export default function ShopsPage() {
           )
           .eq('status', 'active'),
         supabase.from('shop_favorites').select('shop_id'),
+        fetchNextEvents(supabase),
       ])
+      setNextEvents(nextEventMap)
       if (data) {
         setShops(data)
         setFiltered(data)
@@ -174,8 +181,7 @@ export default function ShopsPage() {
     }
 
     if (selectedFormat) {
-      const key = `${selectedFormat}_count`
-      result = result.filter((s) => (s as any)[key] > 0)
+      result = result.filter((s) => getFormatCount(s, selectedFormat) > 0)
     }
 
     if (wpnOnly) {
@@ -195,6 +201,7 @@ export default function ShopsPage() {
       return 0
     })
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
     setFiltered(result)
     if (shops.length === 0) {
       // データ取得前の初回パスでは何もしない
@@ -324,7 +331,7 @@ export default function ShopsPage() {
           <SlidersHorizontal size={14} />
           絞り込み
           {sheetFilterCount > 0 && (
-            <span className="min-w-4 h-4 px-1 rounded-full bg-blue-600 text-white text-[10px] inline-flex items-center justify-center">
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[11px] inline-flex items-center justify-center">
               {sheetFilterCount}
             </span>
           )}
@@ -418,7 +425,8 @@ export default function ShopsPage() {
   if (view === 'map') {
     const selectShopFromList = (shop: ShopListItem) => {
       setSelectedShopId(shop.id)
-      setFocusTarget({ shop, ts: Date.now() })
+      // 同じ店舗を続けて選んでも地図が移動するよう、毎回異なる値を渡す
+      setFocusTarget((prev) => ({ shop, ts: (prev?.ts ?? 0) + 1 }))
       setMobileListOpen(false)
     }
 
@@ -449,7 +457,7 @@ export default function ShopsPage() {
             {selectedShop ? (
               <div className="absolute z-[1000] bottom-3 inset-x-3 md:right-auto md:w-96">
                 <div className="relative shadow-lg rounded-xl">
-                  <ShopCard shop={selectedShop} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
+                  <ShopCard shop={selectedShop} nextEvent={nextEvents.get(selectedShop.id)} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
                   <button
                     type="button"
                     onClick={() => setSelectedShopId(null)}
@@ -496,6 +504,7 @@ export default function ShopsPage() {
                       <ShopCard
                         key={shop.id}
                         shop={shop}
+                        nextEvent={nextEvents.get(shop.id)}
                         isPr={shop.is_premium && shop.pr_enabled}
                         onClick={() => selectShopFromList(shop)}
                       />
@@ -522,6 +531,7 @@ export default function ShopsPage() {
                   <ShopCard
                     key={shop.id}
                     shop={shop}
+                    nextEvent={nextEvents.get(shop.id)}
                     isPr={shop.is_premium && shop.pr_enabled}
                     showPrefecture={false}
                     onClick={() => selectShopFromList(shop)}
@@ -566,7 +576,7 @@ export default function ShopsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+          <SkeletonList kind="shop" />
         ) : filtered.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
             店舗が見つかりませんでした
@@ -588,7 +598,7 @@ export default function ShopsPage() {
           <>
             <div className="flex flex-col gap-2">
               {visibleShops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
+                <ShopCard key={shop.id} shop={shop} nextEvent={nextEvents.get(shop.id)} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
               ))}
             </div>
             {filtered.length > visibleCount && (

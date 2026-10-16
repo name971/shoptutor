@@ -79,6 +79,7 @@ export default function OwnerCoverUpload({ initialUrls }: Props) {
         <div className="grid grid-cols-3 gap-2">
           {urls.map((url) => (
             <div key={url} className="relative aspect-square rounded-lg overflow-hidden border bg-gray-100">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
               <img src={url} alt="店舗写真" className="w-full h-full object-cover" />
               <button
                 type="button"

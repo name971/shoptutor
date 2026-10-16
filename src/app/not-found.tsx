@@ -1,21 +1,32 @@
 import Link from 'next/link'
+import { SearchX } from 'lucide-react'
 
 export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4 pb-24 text-center">
-      <div className="text-5xl">🔍</div>
+      <span className="w-16 h-16 rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/5 text-slate-400 flex items-center justify-center">
+        <SearchX size={28} />
+      </span>
       <div>
-        <h1 className="text-xl font-bold text-gray-800">ページが見つかりません</h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">ページが見つかりません</h1>
+        <p className="mt-2 text-sm text-slate-500">
           お探しのページは移動または削除された可能性があります。
         </p>
       </div>
-      <Link
-        href="/"
-        className="mt-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
-      >
-        ホームに戻る
-      </Link>
+      <div className="mt-2 flex gap-2">
+        <Link
+          href="/"
+          className="h-11 px-5 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 transition-colors inline-flex items-center"
+        >
+          イベントを見る
+        </Link>
+        <Link
+          href="/shops"
+          className="h-11 px-5 rounded-xl bg-white text-sm font-bold text-slate-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 inline-flex items-center"
+        >
+          店舗をさがす
+        </Link>
+      </div>
     </div>
   )
 }

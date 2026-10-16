@@ -10,6 +10,7 @@ export default function EventNotice() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!window.localStorage.getItem(STORAGE_KEY)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setVisible(true)
     }
   }, [])

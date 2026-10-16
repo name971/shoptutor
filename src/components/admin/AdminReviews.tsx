@@ -16,20 +16,21 @@ type Review = {
   profiles: { name: string } | null
 }
 
+async function fetchReviews(): Promise<Review[]> {
+  const res = await fetch('/api/admin/reviews')
+  const data = await res.json()
+  return data.reviews ?? []
+}
+
 export default function AdminReviews() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = async () => {
-    setLoading(true)
-    const res = await fetch('/api/admin/reviews')
-    const data = await res.json()
-    setReviews(data.reviews ?? [])
-    setLoading(false)
-  }
-
   useEffect(() => {
-    load()
+    fetchReviews().then((list) => {
+      setReviews(list)
+      setLoading(false)
+    })
   }, [])
 
   const toggleHide = async (review: Review) => {

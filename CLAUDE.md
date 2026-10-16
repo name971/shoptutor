@@ -40,6 +40,8 @@ types/
 index.ts              # 型定義・フォーマット色定義 ✅
 scripts/
 import.py              # shops.json・events_weekly.jsonをSupabaseにインポート ✅
+supabase/
+migrations/            # DB変更のSQL（Supabase MCPで適用済みのものを記録）
 
 ## DBスキーマ（Supabase）
 主要テーブル：
@@ -51,6 +53,7 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 - `shop_photos` - 店舗写真（Supabase Storage）
 - `photo_likes` - 写真いいね
 - `shop_favorites` - お気に入り店舗
+- `shop_next_events`（ビュー）- 店舗ごとの次のイベント（JSTで未開始の最も早いもの。security_invoker）
 
 ## フォーマット色分け
 - commander: Purple
@@ -156,5 +159,10 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 - 店舗タブの絞り込み：上部はフォーマット1段＋「絞り込み」ボタンのみ。エリア・WPN・マイスター・並び順はボトムシート（`components/ui/BottomSheet.tsx`）。地図表示でエリアを選ぶと、そのエリアに地図を合わせる
 - 地図の表示：ピンの色＝その店で一番多いフォーマット、数字＝週のイベント数（フォーマット絞り込み中はそのフォーマットの色・回数、クラスタも同色）。ピン・クラスタはHTMLマーカーで描き、GeoJSONソースのクラスタ機能でまとめる（ズーム13より拡大で全ピン）。店名ラベルはズーム12以上のみ。ピンをタップすると下に店舗カードを表示（ポップアップは使わない）。スマホは「この範囲の店舗 N件」から下に引き出すリスト、PCは右側に一覧
 - マイページ：プロフィールカード（アバター・フォーマット・レビュー/写真/いいね数）、編集はボトムシート、投稿レビュー・写真、設定リスト（規約・ログアウト・アカウント削除）
+- 店舗カードの「次回」：ビュー`shop_next_events`を一覧取得して店舗IDで引く（`lib/nextEvents.ts`）。取得失敗時は表示しないだけで一覧は出す
+- 確認ダイアログ：`window.confirm`は使わず`useConfirm()`（`components/ui/ConfirmDialog.tsx`）。アカウント削除は「削除」と入力して実行
+- 読み込み中：「読み込み中...」の文字ではなく`components/ui/Skeleton.tsx`の仮表示。店舗詳細は`loading.tsx`
+- 店舗詳細のメタ情報：`generateMetadata`で店名入りのタイトル・説明文・OGP（カバー写真があれば画像に使う）
+- lint：エラー・警告0を維持。ストレージ復元のための effect 内 setState と、圧縮済み投稿写真の`<img>`は理由付きの eslint-disable で許容
 - 店舗詳細：下部ナビの代わりにアクションバー（お気に入り・レビュー・経路）を固定表示。経路はGoogleマップへリンク
 - ホーム（イベント）の位置情報：いきなり許可ダイアログを出さず、説明カードの「現在地を使う」で取得（一度許可したら次回から自動）。ログイン中で保存済み条件がなければメインフォーマットで初期絞り込み

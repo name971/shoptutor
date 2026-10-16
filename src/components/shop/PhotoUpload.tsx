@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -15,6 +16,9 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
+  // 選択した写真のプレビューURL。選び直し・アンマウント時に解放する
+  const previewUrls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files])
+  useEffect(() => () => previewUrls.forEach((url) => URL.revokeObjectURL(url)), [previewUrls])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [existingCount, setExistingCount] = useState<number | null>(null)
@@ -141,32 +145,30 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+        className="w-full h-11 rounded-xl border-2 border-dashed border-slate-200 text-sm font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors inline-flex items-center justify-center gap-2"
       >
-        📷 写真をアップロード（あと{remaining}枚まで）
+        <Camera size={16} />
+        写真を追加（あと{remaining}枚まで）
       </button>
 
       {files.length > 0 && (
         <div className="flex gap-2">
-          {files.map((f, i) => (
-            <div key={i} className="w-14 h-14 rounded-lg overflow-hidden border bg-gray-100">
-              <img
-                src={URL.createObjectURL(f)}
-                alt=""
-                className="w-full h-full object-cover"
-              />
+          {previewUrls.map((url, i) => (
+            <div key={url} className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-slate-900/5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- ローカルのblob URLのプレビューのため */}
+              <img src={url} alt={`選択した写真${i + 1}`} className="w-full h-full object-cover" />
             </div>
           ))}
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-1.5">{error}</p>}
 
       {files.length > 0 && (
         <button
           onClick={handleUpload}
           disabled={uploading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="w-full h-11 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {uploading ? 'アップロード中...' : `${files.length}枚アップロードする`}
         </button>

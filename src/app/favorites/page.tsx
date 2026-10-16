@@ -6,9 +6,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
-import FormatBadge from '@/components/ui/FormatBadge'
 import EventNotice from '@/components/shared/EventNotice'
-import { isEventPast, jstDateKey, formatEventWhen } from '@/lib/eventTime'
+import { isEventPast, jstDateKey, formatDayHeading } from '@/lib/eventTime'
+import EventRow from '@/components/event/EventRow'
+import { SkeletonList } from '@/components/ui/Skeleton'
+import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
+import { groupByDate } from '@/lib/groupByDate'
+import { Star } from 'lucide-react'
 import Chip from '@/components/ui/Chip'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
@@ -28,6 +32,7 @@ export default function FavoritesPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('shops')
   const [shops, setShops] = useState<Shop[]>([])
   const [events, setEvents] = useState<FavoriteEvent[]>([])
+  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(new Map())
   const [loading, setLoading] = useState(true)
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(new Set())
   const [visibleEventCount, setVisibleEventCount] = useState(PAGE_SIZE)
@@ -36,6 +41,7 @@ export default function FavoritesPage() {
   useEffect(() => {
     const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setSelectedFormats(new Set(JSON.parse(saved)))
     }
 
@@ -111,6 +117,7 @@ export default function FavoritesPage() {
         .select('*')
         .in('id', shopIds)
       setShops(shopsData ?? [])
+      setNextEvents(await fetchNextEvents(supabase))
 
       const today = jstDateKey()
       const nextWeek = jstDateKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
@@ -137,7 +144,8 @@ export default function FavoritesPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="app-header px-4 py-3 sticky top-0 z-10">
+      <div className="app-header sticky top-0 z-10">
+        <div className="max-w-lg mx-auto px-4 py-3">
         <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight mb-3">お気に入り</h1>
         <div className="flex gap-2">
           {TABS.map((t) => (
@@ -146,31 +154,35 @@ export default function FavoritesPage() {
             </Chip>
           ))}
         </div>
+        </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4">
         {loading ? (
-          <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+          <SkeletonList kind={tab === 'shops' ? 'shop' : 'event'} />
         ) : tab === 'shops' ? (
           shops.length === 0 ? (
-            <div className="text-center text-gray-500 text-sm py-10 flex flex-col items-center gap-3">
-              お気に入り店舗がまだありません
-              <span className="text-xs text-gray-400">店舗ページの☆を押すと、ここに追加されます</span>
-              <Link href="/" className="h-10 px-4 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center">
+            <div className="surface px-4 py-10 flex flex-col items-center gap-2 text-center">
+              <span className="w-12 h-12 rounded-2xl bg-yellow-50 text-yellow-500 flex items-center justify-center">
+                <Star size={22} />
+              </span>
+              <p className="text-sm font-semibold text-slate-700">お気に入り店舗がまだありません</p>
+              <p className="text-xs text-slate-500">店舗ページの☆を押すと、ここに追加されます</p>
+              <Link href="/shops" className="mt-1 h-9 px-4 rounded-full bg-slate-900 text-white text-xs font-bold inline-flex items-center">
                 店舗をさがす
               </Link>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} />
+                <ShopCard key={shop.id} shop={shop} nextEvent={nextEvents.get(shop.id)} />
               ))}
             </div>
           )
         ) : (
           <>
             <EventNotice />
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-4">
               {FORMATS.map((f) => (
                 <Chip key={f.key} selected={selectedFormats.has(f.key)} onClick={() => toggleFormat(f.key)}>
                   {f.label}
@@ -178,35 +190,36 @@ export default function FavoritesPage() {
               ))}
             </div>
             {filteredEvents.length === 0 ? (
-              <div className="text-center text-gray-400 text-sm py-8">
+              <div className="text-center text-slate-500 text-sm py-8">
                 {events.length === 0
                   ? '今週のイベントはありません'
                   : '該当するフォーマットのイベントはありません'}
               </div>
             ) : (
               <>
-                <div className="flex flex-col gap-2">
-                  {visibleEvents.map((event) => (
-                    <div key={event.id} className="surface p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-sm font-medium truncate">{event.shops?.name}</div>
-                        <FormatBadge format={event.format} size="sm" />
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center justify-between gap-2">
-                        <span className="truncate flex-1">{event.title}</span>
-                        <span className="text-gray-700 font-medium whitespace-nowrap tabular-nums">
-                          {formatEventWhen(event.held_at, event.start_time)}
-                        </span>
-                      </div>
-                    </div>
+                <div className="flex flex-col gap-4">
+                  {groupByDate(visibleEvents).map((group) => (
+                    <section key={group.date} className="flex flex-col gap-2">
+                      <h2 className="text-sm font-bold text-slate-900">{formatDayHeading(group.date)}</h2>
+                      {group.items.map((event) => (
+                        <EventRow
+                          key={event.id}
+                          href={`/shops/${event.shop_id}`}
+                          startTime={event.start_time}
+                          shopName={event.shops?.name}
+                          title={event.title}
+                          format={event.format}
+                        />
+                      ))}
+                    </section>
                   ))}
                 </div>
                 {filteredEvents.length > visibleEventCount && (
                   <button
                     onClick={() => setVisibleEventCount((v) => v + PAGE_SIZE)}
-                    className="w-full text-center text-xs text-blue-600 hover:underline mt-2"
+                    className="w-full h-11 mt-3 rounded-xl surface text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    もっと見る
+                    もっと見る（残り{filteredEvents.length - visibleEventCount}件）
                   </button>
                 )}
               </>

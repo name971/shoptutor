@@ -15,23 +15,31 @@ function isBanned(bannedUntil: string | null): boolean {
   return new Date(bannedUntil).getTime() > Date.now()
 }
 
+async function fetchUsers(query: string): Promise<AdminUser[]> {
+  const res = await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`)
+  const data = await res.json()
+  return data.users ?? []
+}
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const load = async (query: string) => {
-    setLoading(true)
-    const res = await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`)
-    const data = await res.json()
-    setUsers(data.users ?? [])
-    setLoading(false)
-  }
-
   useEffect(() => {
-    load('')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchUsers('').then((list) => {
+      setUsers(list)
+      setLoading(false)
+    })
   }, [])
+
+  const search = (query: string) => {
+    setLoading(true)
+    fetchUsers(query).then((list) => {
+      setUsers(list)
+      setLoading(false)
+    })
+  }
 
   const toggleBan = async (user: AdminUser) => {
     const nextBanned = !isBanned(user.banned_until)
@@ -59,11 +67,11 @@ export default function AdminUsers() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && load(q)}
+          onKeyDown={(e) => e.key === 'Enter' && search(q)}
           placeholder="ユーザー名で検索"
           className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2"
         />
-        <button onClick={() => load(q)} className="px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700">
+        <button onClick={() => search(q)} className="px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700">
           検索
         </button>
       </div>

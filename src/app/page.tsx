@@ -12,7 +12,9 @@ import {
   formatDayHeading,
 } from '@/lib/eventTime'
 import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
-import FormatBadge from '@/components/ui/FormatBadge'
+import EventRow from '@/components/event/EventRow'
+import { SkeletonList } from '@/components/ui/Skeleton'
+import { groupByDate } from '@/lib/groupByDate'
 import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import AuthStatus from '@/components/auth/AuthStatus'
@@ -114,6 +116,7 @@ export default function HomePage() {
   useEffect(() => {
     const saved = loadSavedFilters()
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setRadiusKey(saved.radiusKey ?? '5')
       setSelectedFormat(saved.selectedFormat ?? null)
       setPeriod(saved.period ?? 'today')
@@ -191,6 +194,7 @@ export default function HomePage() {
   // いきなり許可ダイアログを出さず、以前に許可済みの場合のみ自動で取得する
   useEffect(() => {
     if (!navigator.geolocation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setLocationStatus('unsupported')
       return
     }
@@ -321,16 +325,7 @@ export default function HomePage() {
     setLoadingMore(false)
   }
 
-  // 日付ごとにまとめる（取得時点で日付→開始時刻の順に並んでいる）
-  const groups = useMemo(() => {
-    const result: { date: string; items: EventItem[] }[] = []
-    events.forEach((e) => {
-      const last = result[result.length - 1]
-      if (last && last.date === e.held_at) last.items.push(e)
-      else result.push({ date: e.held_at, items: [e] })
-    })
-    return result
-  }, [events])
+  const groups = useMemo(() => groupByDate(events), [events])
 
   const showLocationPrompt = !location && (locationStatus === 'idle' || locationStatus === 'requesting')
   const hasMore = totalCount !== null && events.length < totalCount
@@ -489,7 +484,7 @@ export default function HomePage() {
         )}
 
         {loading ? (
-          <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+          <SkeletonList kind="event" />
         ) : events.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
             該当するイベントが見つかりませんでした
@@ -508,34 +503,26 @@ export default function HomePage() {
           <>
             {groups.map((group) => (
               <section key={group.date} className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-gray-900 pt-1">{formatDayHeading(group.date)}</h2>
+                <h2 className="text-sm font-bold text-slate-900 pt-1">{formatDayHeading(group.date)}</h2>
                 {group.items.map((event) => {
                   const shop = shopById.get(event.shop_id)
                   return (
-                    <Link
+                    <EventRow
                       key={event.id}
                       href={`/shops/${event.shop_id}`}
-                      className="surface p-3 flex gap-3 hover:shadow-md transition-colors"
-                    >
-                      <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-gray-100 pr-3">
-                        <span className="text-base font-bold text-gray-900 tabular-nums">
-                          {event.start_time ?? '—'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col gap-1">
-                        <div className="text-sm font-bold text-gray-900 truncate">{shop?.name}</div>
-                        <div className="text-xs text-gray-600 truncate">{event.title}</div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <FormatBadge format={event.format} size="sm" />
-                          <span className="truncate">
-                            {shop?.prefecture}
-                            {shop?.distance !== null && shop?.distance !== undefined && (
-                              <span className="tabular-nums"> · {shop.distance.toFixed(1)}km</span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+                      startTime={event.start_time}
+                      shopName={shop?.name}
+                      title={event.title}
+                      format={event.format}
+                      meta={
+                        <>
+                          {shop?.prefecture}
+                          {shop?.distance !== null && shop?.distance !== undefined && (
+                            <span className="tabular-nums"> · {shop.distance.toFixed(1)}km</span>
+                          )}
+                        </>
+                      }
+                    />
                   )
                 })}
               </section>
