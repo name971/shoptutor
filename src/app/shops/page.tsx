@@ -21,7 +21,7 @@ import ChipRow from '@/components/ui/ChipRow'
 import BottomSheet from '@/components/ui/BottomSheet'
 import { Search, SlidersHorizontal, X, ChevronDown, ChevronLeft, List, Map as MapIcon, Info } from 'lucide-react'
 import type { MapBounds } from '@/components/map/ShopMap'
-import { REGIONS, cityOf } from '@/lib/area'
+import { REGIONS, cityOf, COUNT_STEPS } from '@/lib/area'
 import AreaPicker from '@/components/shop/AreaPicker'
 
 const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
@@ -92,6 +92,8 @@ export default function ShopsPage() {
   const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
   const [mobileListOpen, setMobileListOpen] = useState(false)
+  // 地図が都道府県の塗り分け表示中か（凡例の切り替えに使う）
+  const [prefectureMode, setPrefectureMode] = useState(false)
   const isFirstFilterRun = useRef(true)
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
@@ -517,10 +519,12 @@ export default function ShopsPage() {
                 fitShops={areaShops}
                 selectedShopId={selectedShop?.id ?? null}
                 highlightFormat={selectedFormat}
+                showPrefectures={areaShops === null}
+                onPrefectureModeChange={setPrefectureMode}
               />
             )}
 
-            <MapLegend format={selectedFormat} />
+            {prefectureMode ? <PrefectureLegend /> : <MapLegend format={selectedFormat} />}
 
             {/* ピンを選んだ店舗のプレビュー */}
             {selectedShop ? (
@@ -755,6 +759,22 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
+  )
+}
+
+function PrefectureLegend() {
+  return (
+    <div className="absolute z-[1000] top-3 left-3 max-w-[calc(100%-5rem)] bg-white/95 rounded-xl shadow-md border border-gray-200 px-3 py-2 text-xs text-gray-700 flex flex-col gap-1.5">
+      <span>数字＝都道府県の店舗数（タップで拡大）</span>
+      <span className="flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] text-gray-500">
+        {[...COUNT_STEPS].reverse().map((s) => (
+          <span key={s.min} className="inline-flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.fill }} />
+            {s.label}
+          </span>
+        ))}
+      </span>
+    </div>
   )
 }
 

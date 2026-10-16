@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { COUNT_STEPS, EMPTY_FILL, shortPrefectureName } from '@/lib/area'
 import { JAPAN_VIEWBOX, OKINAWA_INSET, PREFECTURE_SHAPES } from './japanMapPaths'
 
 type Region = { name: string; prefectures: string[] }
@@ -17,22 +18,10 @@ type Props = {
 }
 
 // 店舗数の段階（色だけに頼らないよう、地方を拡大すると数字も出す）
-export const COUNT_STEPS = [
-  { min: 50, fill: '#1e3a8a', label: '50店〜' },
-  { min: 20, fill: '#1d4ed8', label: '20〜49' },
-  { min: 10, fill: '#3b82f6', label: '10〜19' },
-  { min: 4, fill: '#93c5fd', label: '4〜9' },
-  { min: 1, fill: '#dbeafe', label: '1〜3' },
-]
-const EMPTY_FILL = '#eef1f5'
-
 function stepOf(n: number) {
   return COUNT_STEPS.find((s) => n >= s.min) ?? null
 }
 
-function shortName(prefecture: string) {
-  return prefecture === '北海道' ? prefecture : prefecture.replace(/[都府県]$/, '')
-}
 
 // パス文字列から外接矩形を求める（座標は「M x yLx y…Z」の形）。
 // 離島（伊豆諸島など）まで含めると拡大が甘くなるため、いちばん大きい輪郭だけで測る
@@ -286,7 +275,7 @@ export default function JapanMap({ regions, counts, region, onRegionChange, onSe
                 fontWeight={700}
                 fill="#0f172a"
               >
-                {shortName(s.name)}
+                {shortPrefectureName(s.name)}
                 <tspan dx={2 * unit} fontSize={13 * unit} fontWeight={800} fill="#1e3a8a">
                   {counts.get(s.name) ?? 0}
                 </tspan>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, History } from 'lucide-react'
 import JapanMap from './JapanMap'
+import { shortPrefectureName } from '@/lib/area'
 
 type Props = {
   regions: { name: string; prefectures: string[] }[]
@@ -13,11 +14,6 @@ type Props = {
   lastPrefecture: string | null
   onSelect: (prefecture: string) => void
   onBrowseAll: () => void
-}
-
-// 「東京都」→「東京」、「北海道」はそのまま（タイルを短く読みやすくする）
-function shortName(prefecture: string) {
-  return prefecture === '北海道' ? prefecture : prefecture.replace(/[都府県]$/, '')
 }
 
 // 店舗タブの入口。MTGの店舗は主要な街に集まっているので、地図を動かすより先に都道府県を選んでもらう
@@ -93,7 +89,7 @@ export default function AreaPicker({ regions, counts, total, loading, lastPrefec
                     aria-label={`${p}（${n}店）`}
                     className="surface h-14 px-3 flex flex-col items-start justify-center text-left hover:shadow-md transition-shadow disabled:opacity-40 disabled:hover:shadow-none"
                   >
-                    <span className="text-[15px] font-bold text-gray-900 leading-tight">{shortName(p)}</span>
+                    <span className="text-[15px] font-bold text-gray-900 leading-tight">{shortPrefectureName(p)}</span>
                     <span className="text-xs text-gray-500 tabular-nums">{loading ? '　' : `${n}店`}</span>
                   </button>
                 )

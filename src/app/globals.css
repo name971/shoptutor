@@ -44,7 +44,8 @@ body {
 }
 
 .shop-pin-button,
-.shop-cluster-button {
+.shop-cluster-button,
+.pref-label-button {
   padding: 0;
   border: 0;
   background: none;
@@ -98,6 +99,31 @@ body {
   color: #0f172a;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
   pointer-events: none;
+}
+
+/* 広域表示の都道府県ラベル（県名＋店舗数）。白いふちどりでどの塗り色の上でも読める */
+.pref-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff;
+}
+
+.pref-label b {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e3a8a;
+  font-variant-numeric: tabular-nums;
+}
+
+.pref-label-button:focus-visible .pref-label {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* 広域表示では店名ラベルを隠し、ピンだけにする（選択中の店舗だけは常に表示） */
