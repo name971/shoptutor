@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import FormatBadge from '@/components/ui/FormatBadge'
+import { FORMAT_HEX, FORMAT_LABELS, FORMAT_COLORS } from '@/types'
 
 type Props = {
   href: string
@@ -7,23 +7,30 @@ type Props = {
   shopName: string | undefined
   title: string | null
   format: string
-  // 都道府県・距離など、バッジの横に出す補足
+  // 都道府県・距離など、店名の右に小さく出す補足
   meta?: React.ReactNode
 }
 
-// イベント一覧の1行（左に開始時刻、右に店名・イベント名・フォーマット）。ホームとお気に入りで共通
+// イベント一覧の1行。左に開始時刻、右は2段（店名＋補足／フォーマット＋イベント名）。ホームとお気に入りで共通
 export default function EventRow({ href, startTime, shopName, title, format, meta }: Props) {
+  const color = FORMAT_HEX[format] ?? FORMAT_HEX.other
   return (
-    <Link href={href} className="surface p-3 flex gap-3 hover:shadow-md transition-shadow">
-      <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-slate-100 pr-3">
-        <span className="text-base font-bold text-slate-900 tabular-nums">{startTime ?? '—'}</span>
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
-        <div className="text-sm font-bold text-slate-900 truncate">{shopName}</div>
-        {title && <div className="text-xs text-slate-600 truncate">{title}</div>}
-        <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
-          <FormatBadge format={format} size="sm" />
-          {meta && <span className="truncate">{meta}</span>}
+    <Link href={href} className="surface px-3 py-2.5 flex items-center gap-3 hover:shadow-md transition-shadow">
+      <span className="w-12 flex-shrink-0 text-center text-base font-bold text-slate-900 tabular-nums">
+        {startTime ?? '—'}
+      </span>
+      <span className="self-stretch w-px bg-slate-100" aria-hidden />
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{shopName}</span>
+          {meta && <span className="flex-shrink-0 text-xs text-slate-400">{meta}</span>}
+        </div>
+        <div className="flex items-center gap-1.5 text-xs min-w-0">
+          <span aria-hidden className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+          <span className={`font-semibold flex-shrink-0 ${(FORMAT_COLORS[format] ?? FORMAT_COLORS.other).text}`}>
+            {FORMAT_LABELS[format] ?? 'その他'}
+          </span>
+          {title && <span className="text-slate-500 truncate">{title}</span>}
         </div>
       </div>
     </Link>

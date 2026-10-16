@@ -418,70 +418,53 @@ export default function HomePage() {
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
         {showLocationPrompt && (
-          <div className="surface p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                <LocateFixed size={20} />
-              </span>
-              <div className="font-bold text-sm text-gray-900">近くのイベントから表示します</div>
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              現在地は店舗までの距離の計算だけに使い、保存しません。使わない場合は全国のイベントを表示します。
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={skipLocation}
-                className="h-11 rounded-xl border border-gray-200 text-sm font-bold text-gray-700"
-              >
-                全国で見る
-              </button>
-              <button
-                type="button"
-                onClick={requestLocation}
-                disabled={locationStatus === 'requesting'}
-                className="h-11 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
-              >
-                <LocateFixed size={16} />
-                {locationStatus === 'requesting' ? '取得中...' : '現在地を使う'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {locationStatus === 'denied' && (
-          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            位置情報を取得できませんでした。全国のイベントを表示しています。端末の設定で位置情報を許可すると、近くのイベントに絞り込めます。
-          </p>
-        )}
-
-        {formatFromProfile && selectedFormat && (
-          <div className="flex items-center gap-2 text-xs bg-green-50 text-green-800 rounded-lg px-3 py-2">
-            <span className="flex-1">
-              メインフォーマット（{FORMAT_LABELS[selectedFormat]}）で絞り込んでいます
+          <div className="surface p-3 flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <LocateFixed size={18} />
             </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-slate-900">近くのイベントを見る</div>
+              <div className="text-[11px] text-slate-500">位置は距離の計算だけに使います</div>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setSelectedFormat(null)
-                setFormatFromProfile(false)
-              }}
-              className="inline-flex items-center gap-0.5 font-medium text-green-900"
+              onClick={requestLocation}
+              disabled={locationStatus === 'requesting'}
+              className="h-9 px-3 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-60 flex-shrink-0"
             >
-              解除
-              <X size={14} />
+              {locationStatus === 'requesting' ? '取得中…' : '現在地を使う'}
+            </button>
+            <button
+              type="button"
+              onClick={skipLocation}
+              aria-label="使わずに全国のイベントを見る"
+              className="p-1 -mr-1 text-slate-400 hover:text-slate-600 flex-shrink-0"
+            >
+              <X size={18} />
             </button>
           </div>
         )}
 
-        <EventNotice />
-
-        {!loading && totalCount !== null && totalCount > 0 && (
-          <div className="text-xs text-gray-600">
-            {location && radiusKm !== null ? `現在地から${radiusKm}km以内` : '全国'}のイベント{' '}
-            <span className="font-bold text-gray-900 tabular-nums">{totalCount}</span>件（開始時刻順）
-          </div>
+        {locationStatus === 'denied' && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">位置情報を使えないため、全国のイベントを表示しています</p>
         )}
+
+        {formatFromProfile && selectedFormat && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedFormat(null)
+              setFormatFromProfile(false)
+            }}
+            className="self-start inline-flex items-center gap-1 h-7 pl-3 pr-2 rounded-full text-xs font-medium bg-green-50 text-green-800"
+            aria-label="メインフォーマットでの絞り込みを解除"
+          >
+            メインの{FORMAT_LABELS[selectedFormat]}で表示中
+            <X size={14} />
+          </button>
+        )}
+
+        <EventNotice />
 
         {loading ? (
           <SkeletonList kind="event" />
@@ -515,12 +498,9 @@ export default function HomePage() {
                       title={event.title}
                       format={event.format}
                       meta={
-                        <>
-                          {shop?.prefecture}
-                          {shop?.distance !== null && shop?.distance !== undefined && (
-                            <span className="tabular-nums"> · {shop.distance.toFixed(1)}km</span>
-                          )}
-                        </>
+                        shop?.distance !== null && shop?.distance !== undefined
+                          ? `${shop.distance.toFixed(1)}km`
+                          : shop?.prefecture
                       }
                     />
                   )
