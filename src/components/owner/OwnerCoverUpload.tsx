@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Camera, X } from 'lucide-react'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const MAX_PHOTOS = 3
 
@@ -13,6 +15,7 @@ export default function OwnerCoverUpload({ initialUrls }: Props) {
   const [urls, setUrls] = useState(initialUrls)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const { confirm, confirmDialog } = useConfirm()
 
   const remaining = Math.max(0, MAX_PHOTOS - urls.length)
 
@@ -52,6 +55,8 @@ export default function OwnerCoverUpload({ initialUrls }: Props) {
   }
 
   const handleRemove = async (url: string) => {
+    const ok = await confirm({ title: 'この写真を外しますか？', message: '店舗ページに表示されなくなります。', confirmLabel: '外す', danger: true })
+    if (!ok) return
     setError('')
     const res = await fetch('/api/owner/cover', {
       method: 'DELETE',
@@ -69,24 +74,25 @@ export default function OwnerCoverUpload({ initialUrls }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border p-3 flex flex-col gap-3">
-      <div className="font-medium text-sm">店舗写真（公式）</div>
-      <p className="text-xs text-gray-500">
+    <div className="surface p-4 flex flex-col gap-3">
+      <h2 className="text-sm font-bold text-slate-900">店舗写真（公式）</h2>
+      <p className="text-xs text-slate-500">
         店舗詳細ページの店舗名の下に表示される写真です。最大{MAX_PHOTOS}枚まで設定できます。
       </p>
 
       {urls.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {urls.map((url) => (
-            <div key={url} className="relative aspect-square rounded-lg overflow-hidden border bg-gray-100">
+            <div key={url} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
               {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
               <img src={url} alt="店舗写真" className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => handleRemove(url)}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
+                aria-label="この写真を外す"
+                className="absolute top-1.5 right-1.5 w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900"
               >
-                ×
+                <X size={16} />
               </button>
             </div>
           ))}
@@ -109,13 +115,15 @@ export default function OwnerCoverUpload({ initialUrls }: Props) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          className="w-full h-11 rounded-xl border-2 border-dashed border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-1.5"
         >
-          {uploading ? 'アップロード中...' : `📷 写真を追加（あと${remaining}枚まで）`}
+          <Camera size={16} />
+          {uploading ? 'アップロード中…' : `写真を追加（あと${remaining}枚まで）`}
         </button>
       ) : (
-        <p className="text-xs text-gray-400">すでに{MAX_PHOTOS}枚設定済みです</p>
+        <p className="text-xs text-slate-500">すでに{MAX_PHOTOS}枚設定済みです（外すと追加できます）</p>
       )}
+      {confirmDialog}
     </div>
   )
 }

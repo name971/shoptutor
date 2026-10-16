@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonBlock } from '@/components/ui/Skeleton'
 import { useEffect, useState } from 'react'
 import { FORMAT_LABELS } from '@/types'
 
@@ -189,17 +190,17 @@ export default function OwnerAnalytics() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border p-3">
-        <div className="font-medium text-sm mb-2">訪問者分析</div>
-        <div className="text-xs text-gray-400">読み込み中...</div>
+      <div className="flex flex-col gap-3">
+        <SkeletonBlock className="h-28 w-full" />
+        <SkeletonBlock className="h-56 w-full" />
       </div>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="bg-white rounded-xl border p-3">
-        <div className="font-medium text-sm mb-2">訪問者分析</div>
+      <div className="surface p-4">
+        <div className="text-sm font-bold text-slate-900 mb-2">訪問者分析</div>
         <div className="text-xs text-red-500">{error}</div>
       </div>
     )
@@ -218,9 +219,9 @@ export default function OwnerAnalytics() {
   ] as const
 
   return (
-    <div className="bg-white rounded-xl border p-3 flex flex-col gap-4">
+    <div className="surface p-4 flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <div className="font-medium text-sm">訪問者分析（直近{data.days}日）</div>
+        <h2 className="text-sm font-bold text-slate-900">訪問者分析（直近{data.days}日）</h2>
         <button
           type="button"
           onClick={() => downloadCsv(data)}
@@ -232,7 +233,7 @@ export default function OwnerAnalytics() {
 
       <div>
         <div className="text-xs text-gray-500 mb-1">
-          閲覧数 <span className="text-base font-medium text-gray-800">{data.total_views}</span>件
+          閲覧数 <span className="text-xl font-bold text-slate-900 tabular-nums">{data.total_views}</span>件
         </div>
         <div className="flex w-full h-2.5 rounded-full overflow-hidden bg-gray-100">
           {BREAKDOWN.map((b) => (
