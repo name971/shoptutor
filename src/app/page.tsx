@@ -140,7 +140,7 @@ export default function HomePage() {
       try {
         // 保存済みの条件がないものだけ、ログイン情報から最初の値を決める
         let userId: string | null = null
-        const needsUser = !saved || (!initialArea && readLocal(LOCATION_OPT_IN_KEY) !== '1')
+        const needsUser = !saved || !initialArea
         const supabase = createClient()
         if (needsUser) {
           const { data } = await supabase.auth.getUser()
@@ -155,28 +155,26 @@ export default function HomePage() {
             setFormatFromProfile(true)
           }
         }
-        // 最初のエリア（自分で選んだことがないとき）：現在地を許可済みなら周辺5km
-        // → ログイン中ならお気に入り店舗が一番多い県 → 店舗タブで最後に見た県
+        // 最初のエリア（自分で選んだことがないとき）：ログイン中ならお気に入り店舗が一番多い県
+        // → 現在地を許可済みなら周辺5km → 店舗タブで最後に見た県
+        // （現在地を許可していても、ログイン中はお気に入りの県を優先する。距離は現在地があれば表示される）
         // ここで決めたものは保存しない（お気に入りが変われば次回の初期値も変わるように）
         if (!initialArea) {
-          if (readLocal(LOCATION_OPT_IN_KEY) === '1') {
-            initialArea = { kind: 'near', km: 5 }
-          } else {
-            if (userId) {
-              const { data: favs } = await supabase.from('shop_favorites').select('shops(prefecture)').eq('user_id', userId)
-              const counts = new Map<string, number>()
-              for (const f of (favs ?? []) as unknown as { shops: { prefecture: string } | null }[]) {
-                const p = f.shops?.prefecture
-                if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
-              }
-              // 一番多い県（同数なら3県まで並べて選ぶ）
-              const max = Math.max(0, ...counts.values())
-              const top = [...counts.entries()].filter(([, n]) => n === max).map(([p]) => p).slice(0, 3)
-              if (top.length > 0) initialArea = { kind: 'prefectures', prefectures: top }
+          if (userId) {
+            const { data: favs } = await supabase.from('shop_favorites').select('shops(prefecture)').eq('user_id', userId)
+            const counts = new Map<string, number>()
+            for (const f of (favs ?? []) as unknown as { shops: { prefecture: string } | null }[]) {
+              const p = f.shops?.prefecture
+              if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
             }
-            const lastPrefecture = readLocal(LAST_PREFECTURE_KEY)
-            if (!initialArea && lastPrefecture) initialArea = { kind: 'prefectures', prefectures: [lastPrefecture] }
+            // 一番多い県（同数なら3県まで並べて選ぶ）
+            const max = Math.max(0, ...counts.values())
+            const top = [...counts.entries()].filter(([, n]) => n === max).map(([p]) => p).slice(0, 3)
+            if (top.length > 0) initialArea = { kind: 'prefectures', prefectures: top }
           }
+          const lastPrefecture = readLocal(LAST_PREFECTURE_KEY)
+          if (!initialArea && readLocal(LOCATION_OPT_IN_KEY) === '1') initialArea = { kind: 'near', km: 5 }
+          if (!initialArea && lastPrefecture) initialArea = { kind: 'prefectures', prefectures: [lastPrefecture] }
         }
       } catch {
         // 取れなくても選び直せるので無視
