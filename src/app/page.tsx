@@ -55,7 +55,8 @@ type EventItem = {
 
 const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters_v3'
 // 「どこで」は訪問をまたいで覚えておく（毎回選び直さなくていいように）
-const AREA_STORAGE_KEY = 'shoptutor_home_area'
+// v1は自動で決めた初期値まで保存していたため、v2で読み直す
+const AREA_STORAGE_KEY = 'shoptutor_home_area_v2'
 // 「現在地を使う」を一度押したユーザーは、次回以降は説明カードを出さずに位置情報を取得する
 const LOCATION_OPT_IN_KEY = 'shoptutor_location_opt_in'
 const LOCATION_SKIPPED_KEY = 'shoptutor_location_skipped'
@@ -139,7 +140,7 @@ export default function HomePage() {
       try {
         // 保存済みの条件がないものだけ、ログイン情報から最初の値を決める
         let userId: string | null = null
-        const needsUser = !saved || (!initialArea && readLocal(LOCATION_OPT_IN_KEY) !== '1' && !readLocal(LAST_PREFECTURE_KEY))
+        const needsUser = !saved || (!initialArea && readLocal(LOCATION_OPT_IN_KEY) !== '1')
         const supabase = createClient()
         if (needsUser) {
           const { data } = await supabase.auth.getUser()
@@ -154,22 +155,27 @@ export default function HomePage() {
             setFormatFromProfile(true)
           }
         }
-        // 最初のエリア：現在地を許可済みなら周辺5km → 店舗タブで最後に見た県 → お気に入り店舗が一番多い県
+        // 最初のエリア（自分で選んだことがないとき）：現在地を許可済みなら周辺5km
+        // → ログイン中ならお気に入り店舗が一番多い県 → 店舗タブで最後に見た県
+        // ここで決めたものは保存しない（お気に入りが変われば次回の初期値も変わるように）
         if (!initialArea) {
-          const lastPrefecture = readLocal(LAST_PREFECTURE_KEY)
           if (readLocal(LOCATION_OPT_IN_KEY) === '1') {
             initialArea = { kind: 'near', km: 5 }
-          } else if (lastPrefecture) {
-            initialArea = { kind: 'prefectures', prefectures: [lastPrefecture] }
-          } else if (userId) {
-            const { data: favs } = await supabase.from('shop_favorites').select('shops(prefecture)').eq('user_id', userId)
-            const counts = new Map<string, number>()
-            for (const f of (favs ?? []) as unknown as { shops: { prefecture: string } | null }[]) {
-              const p = f.shops?.prefecture
-              if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
+          } else {
+            if (userId) {
+              const { data: favs } = await supabase.from('shop_favorites').select('shops(prefecture)').eq('user_id', userId)
+              const counts = new Map<string, number>()
+              for (const f of (favs ?? []) as unknown as { shops: { prefecture: string } | null }[]) {
+                const p = f.shops?.prefecture
+                if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
+              }
+              // 一番多い県（同数なら3県まで並べて選ぶ）
+              const max = Math.max(0, ...counts.values())
+              const top = [...counts.entries()].filter(([, n]) => n === max).map(([p]) => p).slice(0, 3)
+              if (top.length > 0) initialArea = { kind: 'prefectures', prefectures: top }
             }
-            const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
-            if (top) initialArea = { kind: 'prefectures', prefectures: [top] }
+            const lastPrefecture = readLocal(LAST_PREFECTURE_KEY)
+            if (!initialArea && lastPrefecture) initialArea = { kind: 'prefectures', prefectures: [lastPrefecture] }
           }
         }
       } catch {
@@ -189,11 +195,20 @@ export default function HomePage() {
         FILTERS_STORAGE_KEY,
         JSON.stringify({ selectedFormat, day })
       )
-      if (area) window.localStorage.setItem(AREA_STORAGE_KEY, JSON.stringify(area))
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, area, selectedFormat, day])
+  }, [filtersRestored, selectedFormat, day])
+
+  // 自分で選んだエリアだけ端末に保存する（次回もそのまま使う）
+  const chooseArea = (next: EventArea) => {
+    setArea(next)
+    try {
+      window.localStorage.setItem(AREA_STORAGE_KEY, JSON.stringify(next))
+    } catch {
+      // 保存失敗は無視
+    }
+  }
 
   // switchToNear：取れたら「現在地の周辺」に切り替える（ボタンから使ったとき）
   const requestLocation = (switchToNear = false) => {
@@ -208,7 +223,14 @@ export default function HomePage() {
         setLocation(lastKnownLocation)
         setLocationStatus('granted')
         if (switchToNear) {
-          setArea({ kind: 'near', km: 5 })
+          // 自分で選んだエリアとして保存する（下の chooseArea と同じ。effect から呼ばれるため直接書く）
+          const near: EventArea = { kind: 'near', km: 5 }
+          setArea(near)
+          try {
+            window.localStorage.setItem(AREA_STORAGE_KEY, JSON.stringify(near))
+          } catch {
+            // 保存失敗は無視
+          }
           setAreaSheetOpen(false)
         }
         try {
@@ -500,7 +522,7 @@ export default function HomePage() {
                 都道府県を選ぶ
               </button>
             </div>
-            <button type="button" onClick={() => setArea({ kind: 'all' })} className="self-center text-xs text-slate-500 underline underline-offset-2">
+            <button type="button" onClick={() => chooseArea({ kind: 'all' })} className="self-center text-xs text-slate-500 underline underline-offset-2">
               全国のイベントを見る
             </button>
           </div>
@@ -536,7 +558,7 @@ export default function HomePage() {
               </button>
             )}
             {area?.kind === 'near' && area.km < 10 && (
-              <button type="button" onClick={() => setArea({ kind: 'near', km: 10 })} className="text-blue-600 font-medium">
+              <button type="button" onClick={() => chooseArea({ kind: 'near', km: 10 })} className="text-blue-600 font-medium">
                 10km以内に広げる
               </button>
             )}
@@ -612,7 +634,7 @@ export default function HomePage() {
         locating={locationStatus === 'requesting'}
         onClose={() => setAreaSheetOpen(false)}
         onApply={(next) => {
-          setArea(next)
+          chooseArea(next)
           setAreaSheetOpen(false)
         }}
         onUseLocation={() => requestLocation(true)}
