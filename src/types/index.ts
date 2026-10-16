@@ -52,7 +52,10 @@ export type ShopListItem = Omit<
   | 'cover_photo_urls'
   | 'parking_available'
   | 'parking_note'
->
+> & {
+  // 店舗カードのサムネイル用（オーナーが登録した公式写真。一覧で取得したときだけ入る）
+  cover_photo_urls?: string[]
+}
 
 export type Event = {
   id: string

@@ -7,11 +7,11 @@ import { createClient } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import EventNotice from '@/components/shared/EventNotice'
-import { isEventPast, jstDateKey, formatDayHeading } from '@/lib/eventTime'
+import { isEventPast, jstDateKey, formatDayHeading, isStartingSoon } from '@/lib/eventTime'
 import EventRow from '@/components/event/EventRow'
 import { SkeletonList } from '@/components/ui/Skeleton'
-import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
 import { groupByDate } from '@/lib/groupByDate'
+import { groupSameShopAndTime } from '@/lib/groupEvents'
 import { Star } from 'lucide-react'
 import Chip from '@/components/ui/Chip'
 
@@ -32,7 +32,6 @@ export default function FavoritesPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('shops')
   const [shops, setShops] = useState<Shop[]>([])
   const [events, setEvents] = useState<FavoriteEvent[]>([])
-  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(new Map())
   const [loading, setLoading] = useState(true)
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(new Set())
   const [visibleEventCount, setVisibleEventCount] = useState(PAGE_SIZE)
@@ -117,7 +116,6 @@ export default function FavoritesPage() {
         .select('*')
         .in('id', shopIds)
       setShops(shopsData ?? [])
-      setNextEvents(await fetchNextEvents(supabase))
 
       const today = jstDateKey()
       const nextWeek = jstDateKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
@@ -175,7 +173,7 @@ export default function FavoritesPage() {
           ) : (
             <div className="flex flex-col gap-2">
               {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} nextEvent={nextEvents.get(shop.id)} />
+                <ShopCard key={shop.id} shop={shop} />
               ))}
             </div>
           )
@@ -199,16 +197,27 @@ export default function FavoritesPage() {
               <>
                 <div className="flex flex-col gap-4">
                   {groupByDate(visibleEvents).map((group) => (
-                    <section key={group.date} className="flex flex-col gap-2">
-                      <h2 className="text-sm font-bold text-slate-900">{formatDayHeading(group.date)}</h2>
-                      {group.items.map((event) => (
+                    <section key={group.date} className="flex flex-col">
+                      <h2 className="text-sm font-bold text-slate-900 pb-1">{formatDayHeading(group.date)}</h2>
+                      {groupSameShopAndTime(group.items).map((bundle) => (
                         <EventRow
-                          key={event.id}
-                          href={`/shops/${event.shop_id}`}
-                          startTime={event.start_time}
-                          shopName={event.shops?.name}
-                          title={event.title}
-                          format={event.format}
+                          key={bundle[0].id}
+                          href={`/shops/${bundle[0].shop_id}`}
+                          startTime={bundle[0].start_time}
+                          soon={isStartingSoon(bundle[0].held_at, bundle[0].start_time)}
+                          shopName={bundle[0].shops?.name}
+                          items={bundle.map((e) => ({
+                            title: e.title,
+                            format: e.format,
+                            reminder: {
+                              shopId: e.shop_id,
+                              shopName: e.shops?.name ?? '',
+                              title: e.title,
+                              format: e.format,
+                              heldAt: e.held_at,
+                              startTime: e.start_time,
+                            },
+                          }))}
                         />
                       ))}
                     </section>

@@ -81,3 +81,12 @@ export function formatDayHeading(key: string): string {
   const relative = formatEventDate(key)
   return relative === '今日' || relative === '明日' ? `${base} ${relative}` : base
 }
+
+// 今日のイベントで、開始まで minutes 分以内（まだ始まっていない）か
+export function isStartingSoon(heldAt: string, startTime: string | null, minutes = 60): boolean {
+  if (!startTime || heldAt !== jstDateKey()) return false
+  const [h, m] = jstTimeKey().split(':').map(Number)
+  const [sh, sm] = startTime.split(':').map(Number)
+  const diff = sh * 60 + sm - (h * 60 + m)
+  return diff >= 0 && diff <= minutes
+}

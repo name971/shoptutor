@@ -4,17 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { haversineDistanceKm } from '@/lib/geo'
+import { cached } from '@/lib/clientCache'
 import {
   jstDateKey,
   jstTimeKey,
   addDaysToKey,
-  weekdayOfKey,
   formatDayHeading,
+  isStartingSoon,
 } from '@/lib/eventTime'
 import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
 import EventRow from '@/components/event/EventRow'
+import DateStrip from '@/components/event/DateStrip'
+import ReminderList from '@/components/event/ReminderList'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { groupByDate } from '@/lib/groupByDate'
+import { groupSameShopAndTime } from '@/lib/groupEvents'
 import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
@@ -30,22 +34,16 @@ const RADIUS_OPTIONS = [
 
 type RadiusKey = (typeof RADIUS_OPTIONS)[number]['key']
 
-const PERIODS = [
-  { key: 'today', label: '今日' },
-  { key: 'tomorrow', label: '明日' },
-  { key: 'weekend', label: '今週末' },
-  { key: 'week', label: '7日間' },
-] as const
-
-type PeriodKey = (typeof PERIODS)[number]['key']
+// 日付の選択：'YYYY-MM-DD'（その日だけ）か 'week'（今日から7日間）
+type DayKey = string
+const NO_COUNTS = new Map<string, number>()
 
 // Supabaseの1回の取得上限（既定1000件）を超えないよう、ページ単位で取得する
 const PAGE_SIZE = 50
 
-type ShopInfo = {
+// 距離の計算に使う店舗の座標（現在地を使うときだけ取得する）
+type ShopCoord = {
   id: string
-  name: string
-  prefecture: string
   lat: number | null
   lng: number | null
 }
@@ -57,19 +55,24 @@ type EventItem = {
   format: string
   held_at: string
   start_time: string | null
+  // 店名・都道府県はイベントと一緒に取得する（全店舗の一覧を別に取らずに済む）
+  shops: { name: string; prefecture: string } | null
 }
 
-const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters'
+const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters_v2'
 // 「現在地を使う」を一度押したユーザーは、次回以降は説明カードを出さずに位置情報を取得する
 const LOCATION_OPT_IN_KEY = 'shoptutor_location_opt_in'
 const LOCATION_SKIPPED_KEY = 'shoptutor_location_skipped'
+
+// 現在地はページを再読み込みするまでメモリ上に保持する（保存はしない）
+let lastKnownLocation: { lat: number; lng: number } | null = null
 
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'skipped' | 'unsupported'
 
 function loadSavedFilters(): {
   radiusKey: RadiusKey
   selectedFormat: string | null
-  period: PeriodKey
+  day: DayKey
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -80,32 +83,24 @@ function loadSavedFilters(): {
   }
 }
 
-// 期間の開始日・終了日（JSTの日付キー）
-function periodRange(period: PeriodKey): { from: string; to: string } {
+// 選択した日の開始日・終了日（JSTの日付キー）
+function dayRange(day: DayKey): { from: string; to: string } {
   const today = jstDateKey()
-  if (period === 'today') return { from: today, to: today }
-  if (period === 'tomorrow') {
-    const tomorrow = addDaysToKey(today, 1)
-    return { from: tomorrow, to: tomorrow }
-  }
-  if (period === 'weekend') {
-    const weekday = weekdayOfKey(today)
-    if (weekday === 0) return { from: today, to: today }
-    const saturday = addDaysToKey(today, 6 - weekday)
-    return { from: saturday, to: addDaysToKey(saturday, 1) }
-  }
-  return { from: today, to: addDaysToKey(today, 6) }
+  if (day === 'week') return { from: today, to: addDaysToKey(today, 6) }
+  return { from: day, to: day }
 }
 
 export default function HomePage() {
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle')
+  // 同じ訪問中にタブを移動して戻ってきたときは、前回の現在地をそのまま使う（取り直しによる二重取得を防ぐ）
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(() => lastKnownLocation)
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(() => (lastKnownLocation ? 'granted' : 'idle'))
   const [radiusKey, setRadiusKey] = useState<RadiusKey>('5')
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [formatFromProfile, setFormatFromProfile] = useState(false)
-  const [period, setPeriod] = useState<PeriodKey>('today')
+  const [day, setDay] = useState<DayKey>(() => jstDateKey())
+  const [dayCounts, setDayCounts] = useState<Map<string, number>>(new Map())
   const [filtersRestored, setFiltersRestored] = useState(false)
-  const [shops, setShops] = useState<ShopInfo[] | null>(null)
+  const [shopCoords, setShopCoords] = useState<ShopCoord[] | null>(null)
   const [events, setEvents] = useState<EventItem[]>([])
   const [totalCount, setTotalCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,7 +115,8 @@ export default function HomePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setRadiusKey(saved.radiusKey ?? '5')
       setSelectedFormat(saved.selectedFormat ?? null)
-      setPeriod(saved.period ?? 'today')
+      // 前回の訪問で選んだ日が過ぎていたら今日に戻す
+      setDay(saved.day && (saved.day === 'week' || saved.day >= jstDateKey()) ? saved.day : jstDateKey())
       setFiltersRestored(true)
       return
     }
@@ -155,12 +151,12 @@ export default function HomePage() {
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({ radiusKey, selectedFormat, period })
+        JSON.stringify({ radiusKey, selectedFormat, day })
       )
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, radiusKey, selectedFormat, period])
+  }, [filtersRestored, radiusKey, selectedFormat, day])
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -170,7 +166,8 @@ export default function HomePage() {
     setLocationStatus('requesting')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        lastKnownLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setLocation(lastKnownLocation)
         setLocationStatus('granted')
         try {
           localStorage.setItem(LOCATION_OPT_IN_KEY, '1')
@@ -194,6 +191,7 @@ export default function HomePage() {
 
   // いきなり許可ダイアログを出さず、以前に許可済みの場合のみ自動で取得する
   useEffect(() => {
+    if (lastKnownLocation) return
     if (!navigator.geolocation) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setLocationStatus('unsupported')
@@ -223,46 +221,50 @@ export default function HomePage() {
       .catch(() => {})
   }, [])
 
+  // 店舗の座標は現在地を使うときだけ必要（距離の計算・半径での絞り込み）
   useEffect(() => {
-    const loadShops = async () => {
-      const supabase = createClient()
-      const { data } = await supabase
+    if (!location) return
+    cached('home:shop-coords', 10 * 60 * 1000, async () => {
+      const { data, error } = await createClient()
         .from('shops')
-        .select('id, name, prefecture, lat, lng')
+        .select('id, lat, lng')
         .eq('status', 'active')
-      setShops(data ?? [])
-    }
-    loadShops()
-  }, [])
+      if (error) throw error
+      return (data ?? []) as ShopCoord[]
+    })
+      .then(setShopCoords)
+      .catch(() => setShopCoords([]))
+  }, [location])
 
   const radiusKm = RADIUS_OPTIONS.find((r) => r.key === radiusKey)?.km ?? null
   const isRadiusLimited = location !== null && radiusKm !== null
 
   // 現在地からの距離と、半径内の店舗
-  const { shopById, targetShopIds } = useMemo(() => {
-    const byId = new Map<string, ShopInfo & { distance: number | null }>()
+  const { distanceById, targetShopIds } = useMemo(() => {
+    const distances = new Map<string, number>()
     const ids: string[] = []
-    ;(shops ?? []).forEach((s) => {
-      const distance =
-        location && s.lat !== null && s.lng !== null
-          ? haversineDistanceKm(location.lat, location.lng, s.lat, s.lng)
-          : null
-      byId.set(s.id, { ...s, distance })
-      if (location && radiusKm !== null && (distance === null || distance > radiusKm)) return
-      ids.push(s.id)
-    })
-    return { shopById: byId, targetShopIds: ids }
-  }, [shops, location, radiusKm])
+    if (location) {
+      ;(shopCoords ?? []).forEach((s) => {
+        if (s.lat === null || s.lng === null) return
+        const distance = haversineDistanceKm(location.lat, location.lng, s.lat, s.lng)
+        distances.set(s.id, distance)
+        if (radiusKm === null || distance <= radiusKm) ids.push(s.id)
+      })
+    }
+    return { distanceById: distances, targetShopIds: ids }
+  }, [shopCoords, location, radiusKm])
 
   const fetchPage = useCallback(
     async (offset: number) => {
       const supabase = createClient()
-      const { from, to } = periodRange(period)
+      const { from, to } = dayRange(day)
       const today = jstDateKey()
 
       let query = supabase
         .from('events')
-        .select('id, shop_id, title, format, held_at, start_time, shops!inner(status)', { count: 'exact' })
+        .select('id, shop_id, title, format, held_at, start_time, shops!inner(name, prefecture, status)', {
+          count: 'exact',
+        })
         .gte('held_at', from)
         .lte('held_at', to)
 
@@ -291,17 +293,18 @@ export default function HomePage() {
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
     },
-    [period, selectedFormat, targetShopIds, isRadiusLimited]
+    [day, selectedFormat, targetShopIds, isRadiusLimited]
   )
 
   useEffect(() => {
     // 保存済み条件・メインフォーマットの反映が終わるまでは取得しない（二重取得とチラつき防止）
-    if (!filtersRestored || shops === null) return
+    // 現在地を使うときは、半径内の店舗を決めるための座標が届くまで待つ
+    if (!filtersRestored || (isRadiusLimited && shopCoords === null)) return
     const requestId = ++requestIdRef.current
 
     const load = async () => {
       setLoading(true)
-      if (targetShopIds.length === 0) {
+      if (isRadiusLimited && targetShopIds.length === 0) {
         setEvents([])
         setTotalCount(0)
         setLoading(false)
@@ -309,19 +312,44 @@ export default function HomePage() {
       }
       const { data, count } = await fetchPage(0)
       if (requestId !== requestIdRef.current) return
-      setEvents(data ?? [])
+      setEvents((data ?? []) as unknown as EventItem[])
       setTotalCount(count ?? null)
       setLoading(false)
     }
     load()
-  }, [filtersRestored, shops, targetShopIds, fetchPage])
+  }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, fetchPage])
+
+  // カレンダー帯に出す日ごとの件数（フォーマット・半径の絞り込みを反映。7日分を1回で取得）
+  useEffect(() => {
+    if (!filtersRestored || (isRadiusLimited && shopCoords === null)) return
+    // 半径内に店舗がないときは取得しない（表示側で0件扱いにする）
+    if (isRadiusLimited && targetShopIds.length === 0) return
+    const today = jstDateKey()
+    const formats = selectedFormat === 'other' ? OTHER_FORMAT_KEYS : selectedFormat ? [selectedFormat] : null
+    let cancelled = false
+    createClient()
+      .rpc('event_counts_by_day', {
+        p_from: today,
+        p_to: addDaysToKey(today, 6),
+        p_formats: formats,
+        p_shop_ids: isRadiusLimited ? targetShopIds : null,
+      })
+      .then(({ data, error }) => {
+        if (cancelled || error) return
+        const rows = Array.isArray(data) ? (data as { held_at: string; event_count: number }[]) : []
+        setDayCounts(new Map(rows.map((r) => [r.held_at, r.event_count])))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, selectedFormat])
 
   const loadMore = async () => {
     const requestId = requestIdRef.current
     setLoadingMore(true)
     const { data } = await fetchPage(events.length)
     if (requestId === requestIdRef.current) {
-      setEvents((prev) => [...prev, ...(data ?? [])])
+      setEvents((prev) => [...prev, ...((data ?? []) as unknown as EventItem[])])
     }
     setLoadingMore(false)
   }
@@ -374,22 +402,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-lg mx-auto px-4 pt-3">
-          <div className="flex bg-gray-100 rounded-xl p-1" role="group" aria-label="期間">
-            {PERIODS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setPeriod(p.key)}
-                aria-pressed={period === p.key}
-                className={`flex-1 h-8 rounded-lg text-sm font-medium transition-colors ${
-                  period === p.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="max-w-lg mx-auto px-3 pt-3">
+          <DateStrip
+            selected={day}
+            onSelect={setDay}
+            counts={isRadiusLimited && targetShopIds.length === 0 ? NO_COUNTS : dayCounts}
+          />
         </div>
 
         <ChipRow className="max-w-lg mx-auto py-2">
@@ -465,6 +483,8 @@ export default function HomePage() {
           </button>
         )}
 
+        <ReminderList />
+
         <EventNotice />
 
         {loading ? (
@@ -472,8 +492,8 @@ export default function HomePage() {
         ) : events.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
             該当するイベントが見つかりませんでした
-            {period !== 'week' && (
-              <button type="button" onClick={() => setPeriod('week')} className="text-blue-600 font-medium">
+            {day !== 'week' && (
+              <button type="button" onClick={() => setDay('week')} className="text-blue-600 font-medium">
                 7日間で探す
               </button>
             )}
@@ -486,23 +506,31 @@ export default function HomePage() {
         ) : (
           <>
             {groups.map((group) => (
-              <section key={group.date} className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-slate-900 pt-1">{formatDayHeading(group.date)}</h2>
-                {group.items.map((event) => {
-                  const shop = shopById.get(event.shop_id)
+              <section key={group.date} className="flex flex-col">
+                <h2 className="text-sm font-bold text-slate-900 pt-1 pb-1">{formatDayHeading(group.date)}</h2>
+                {groupSameShopAndTime(group.items).map((bundle) => {
+                  const event = bundle[0]
+                  const distance = distanceById.get(event.shop_id)
                   return (
                     <EventRow
                       key={event.id}
                       href={`/shops/${event.shop_id}`}
                       startTime={event.start_time}
-                      shopName={shop?.name}
-                      title={event.title}
-                      format={event.format}
-                      meta={
-                        shop?.distance !== null && shop?.distance !== undefined
-                          ? `${shop.distance.toFixed(1)}km`
-                          : shop?.prefecture
-                      }
+                      soon={isStartingSoon(event.held_at, event.start_time)}
+                      shopName={event.shops?.name}
+                      meta={distance !== undefined ? `${distance.toFixed(1)}km` : event.shops?.prefecture}
+                      items={bundle.map((e) => ({
+                        title: e.title,
+                        format: e.format,
+                        reminder: {
+                          shopId: e.shop_id,
+                          shopName: e.shops?.name ?? '',
+                          title: e.title,
+                          format: e.format,
+                          heldAt: e.held_at,
+                          startTime: e.start_time,
+                        },
+                      }))}
                     />
                   )
                 })}

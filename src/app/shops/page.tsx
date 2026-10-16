@@ -14,13 +14,15 @@ import ShopCard from '@/components/shop/ShopCard'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
-import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
+import { cached, peekCached } from '@/lib/clientCache'
 import { getFormatCount } from '@/lib/shopFormat'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
 import BottomSheet from '@/components/ui/BottomSheet'
-import { Search, SlidersHorizontal, X, ChevronDown, List, Map as MapIcon, Info } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronDown, ChevronLeft, List, Map as MapIcon, Info } from 'lucide-react'
 import type { MapBounds } from '@/components/map/ShopMap'
+import { REGIONS, cityOf, COUNT_STEPS } from '@/lib/area'
+import AreaPicker from '@/components/shop/AreaPicker'
 
 const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
   ssr: false,
@@ -33,23 +35,18 @@ const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
 
 type View = 'list' | 'map'
 
-const REGIONS = [
-  { name: '北海道・東北', prefectures: ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県'] },
-  { name: '関東', prefectures: ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県'] },
-  { name: '甲信越・北陸', prefectures: ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県'] },
-  { name: '東海', prefectures: ['岐阜県', '静岡県', '愛知県', '三重県'] },
-  { name: '関西', prefectures: ['滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県'] },
-  { name: '中国', prefectures: ['鳥取県', '島根県', '岡山県', '広島県', '山口県'] },
-  { name: '四国', prefectures: ['徳島県', '香川県', '愛媛県', '高知県'] },
-  { name: '九州・沖縄', prefectures: ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'] },
-]
-
 const PAGE_SIZE = 20
 
-const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters'
+const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters_v2'
+// 前回見た都道府県（次に来たときエリア選択の先頭に出す）。端末に残す
+const LAST_PREFECTURE_KEY = 'shoptutor_last_prefecture'
+const SHOP_LIST_CACHE_KEY = 'shops:list'
+const FAVORITE_COUNTS_CACHE_KEY = 'shops:favorite-counts'
 
 function loadSavedFilters(): {
   prefectureFilter: string | null
+  cityFilter?: string | null
+  browseAll?: boolean
   expandedRegion: string | null
   selectedFormat: string | null
   wpnOnly: boolean
@@ -68,11 +65,17 @@ function loadSavedFilters(): {
 }
 
 export default function ShopsPage() {
-  const [shops, setShops] = useState<ShopListItem[]>([])
-  const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(new Map())
-  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(new Map())
-  const [filtered, setFiltered] = useState<ShopListItem[]>([])
+  // タブを移動して戻ってきたときは、保持している一覧ですぐ表示する（読み込み中を出さない）
+  const [shops, setShops] = useState<ShopListItem[]>(() => peekCached<ShopListItem[]>(SHOP_LIST_CACHE_KEY) ?? [])
+  const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(
+    () => peekCached<Map<string, number>>(FAVORITE_COUNTS_CACHE_KEY) ?? new Map()
+  )
+  const [filtered, setFiltered] = useState<ShopListItem[]>(shops)
   const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
+  const [cityFilter, setCityFilter] = useState<string | null>(null)
+  // エリアを選ばずに全国の一覧を見ている
+  const [browseAll, setBrowseAll] = useState(false)
+  const [lastPrefecture, setLastPrefecture] = useState<string | null>(null)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [selectedSort, setSelectedSort] = useState('recommended')
@@ -80,14 +83,17 @@ export default function ShopsPage() {
   const [meisterOnly, setMeisterOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filtersRestored, setFiltersRestored] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(shops.length === 0)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // MTGの店舗は主要な街に集まっているため、地図より先に都道府県から選んでもらう（リスト表示＝エリア選択から始める）
   const [view, setView] = useState<View>('list')
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
   const [mobileListOpen, setMobileListOpen] = useState(false)
+  // 地図が都道府県の塗り分け表示中か（凡例の切り替えに使う）
+  const [prefectureMode, setPrefectureMode] = useState(false)
   const isFirstFilterRun = useRef(true)
 
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
@@ -97,6 +103,8 @@ export default function ShopsPage() {
     if (saved) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setPrefectureFilter(saved.prefectureFilter ?? null)
+      setCityFilter(saved.cityFilter ?? null)
+      setBrowseAll(saved.browseAll ?? false)
       setExpandedRegion(saved.expandedRegion ?? null)
       setSelectedFormat(saved.selectedFormat ?? null)
       setWpnOnly(saved.wpnOnly ?? false)
@@ -104,6 +112,11 @@ export default function ShopsPage() {
       setSearchQuery(saved.searchQuery ?? '')
       setVisibleCount(saved.visibleCount ?? PAGE_SIZE)
       setView(saved.view ?? 'list')
+    }
+    try {
+      setLastPrefecture(window.localStorage.getItem(LAST_PREFECTURE_KEY))
+    } catch {
+      // 読めない環境では出さない
     }
     // 旧「地図」タブ（/map）からのリダイレクトは ?view=map で地図表示から始める
     if (new URLSearchParams(window.location.search).get('view') === 'map') {
@@ -113,31 +126,32 @@ export default function ShopsPage() {
   }, [])
 
   useEffect(() => {
-    const fetchShops = async () => {
-      const supabase = createClient()
-      const [{ data }, { data: favData }, nextEventMap] = await Promise.all([
-        supabase
+    const supabase = createClient()
+    // 店舗一覧とお気に入り数は数分では変わらないため、タブを移動して戻ってきたときは保持分を使う
+    Promise.all([
+      cached(SHOP_LIST_CACHE_KEY, 5 * 60 * 1000, async () => {
+        const { data, error } = await supabase
           .from('shops')
           .select(
-            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count, cover_photo_urls'
           )
-          .eq('status', 'active'),
-        supabase.from('shop_favorites').select('shop_id'),
-        fetchNextEvents(supabase),
-      ])
-      setNextEvents(nextEventMap)
-      if (data) {
-        setShops(data)
-        setFiltered(data)
-      }
-      if (favData) {
-        const counts = new Map<string, number>()
-        favData.forEach((f) => counts.set(f.shop_id, (counts.get(f.shop_id) ?? 0) + 1))
+          .eq('status', 'active')
+        if (error) throw error
+        return (data ?? []) as ShopListItem[]
+      }),
+      cached(FAVORITE_COUNTS_CACHE_KEY, 5 * 60 * 1000, async () => {
+        const { data, error } = await supabase.from('shop_favorite_counts').select('shop_id, favorite_count')
+        if (error) throw error
+        return new Map((data ?? []).map((r) => [r.shop_id as string, r.favorite_count as number]))
+      }).catch(() => new Map<string, number>()),
+    ])
+      .then(([list, counts]) => {
+        setShops(list)
+        setFiltered(list)
         setFavoriteCounts(counts)
-      }
-      setLoading(false)
-    }
-    fetchShops()
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const recommendScores = useMemo(
@@ -159,17 +173,12 @@ export default function ShopsPage() {
     [availablePrefectureSet]
   )
 
-  useEffect(() => {
-    let result = [...shops]
+  // 店舗ごとの市区町村（住所から取り出す）
+  const cityById = useMemo(() => new Map(shops.map((s) => [s.id, cityOf(s.address)])), [shops])
 
-    if (prefectureFilter) {
-      result = result.filter((s) => s.prefecture === prefectureFilter)
-    } else if (expandedRegion) {
-      const region = REGIONS.find((r) => r.name === expandedRegion)
-      if (region) {
-        result = result.filter((s) => region.prefectures.includes(s.prefecture))
-      }
-    }
+  // エリア以外の条件（検索・フォーマット・特徴）で絞った店舗。エリア選択の件数にも使う
+  const baseFiltered = useMemo(() => {
+    let result = [...shops]
 
     const query = searchQuery.trim().toLowerCase()
     if (query) {
@@ -192,6 +201,21 @@ export default function ShopsPage() {
     if (meisterOnly) {
       result = result.filter((s) => s.is_teaching_meister)
     }
+    return result
+  }, [shops, searchQuery, selectedFormat, wpnOnly, meisterOnly])
+
+  useEffect(() => {
+    let result = [...baseFiltered]
+
+    if (prefectureFilter) {
+      result = result.filter((s) => s.prefecture === prefectureFilter)
+      if (cityFilter) result = result.filter((s) => cityById.get(s.id) === cityFilter)
+    } else if (expandedRegion) {
+      const region = REGIONS.find((r) => r.name === expandedRegion)
+      if (region) {
+        result = result.filter((s) => region.prefectures.includes(s.prefecture))
+      }
+    }
 
     result.sort((a, b) => {
       if (selectedSort === 'recommended') {
@@ -212,7 +236,7 @@ export default function ShopsPage() {
     } else {
       setVisibleCount(PAGE_SIZE)
     }
-  }, [shops, prefectureFilter, expandedRegion, searchQuery, selectedFormat, wpnOnly, meisterOnly, selectedSort, recommendScores])
+  }, [shops, baseFiltered, prefectureFilter, cityFilter, cityById, expandedRegion, selectedSort, recommendScores])
 
   useEffect(() => {
     if (!filtersRestored) return
@@ -221,6 +245,8 @@ export default function ShopsPage() {
         FILTERS_STORAGE_KEY,
         JSON.stringify({
           prefectureFilter,
+          cityFilter,
+          browseAll,
           expandedRegion,
           selectedFormat,
           wpnOnly,
@@ -233,17 +259,19 @@ export default function ShopsPage() {
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, prefectureFilter, expandedRegion, selectedFormat, wpnOnly, meisterOnly, searchQuery, visibleCount, view])
+  }, [filtersRestored, prefectureFilter, cityFilter, browseAll, expandedRegion, selectedFormat, wpnOnly, meisterOnly, searchQuery, visibleCount, view])
 
   // エリアを選んだら地図をそのエリアの店舗に合わせる（他の絞り込みでは地図を動かさない）
   const areaShops = useMemo(() => {
-    if (prefectureFilter) return shops.filter((s) => s.prefecture === prefectureFilter)
+    if (prefectureFilter) {
+      return shops.filter((s) => s.prefecture === prefectureFilter && (!cityFilter || cityById.get(s.id) === cityFilter))
+    }
     if (expandedRegion) {
       const region = REGIONS.find((r) => r.name === expandedRegion)
       return region ? shops.filter((s) => region.prefectures.includes(s.prefecture)) : null
     }
     return null
-  }, [shops, prefectureFilter, expandedRegion])
+  }, [shops, prefectureFilter, cityFilter, cityById, expandedRegion])
 
   const inBounds = (s: ShopListItem) =>
     !mapBounds ||
@@ -258,14 +286,56 @@ export default function ShopsPage() {
   const selectedShop = selectedShopId ? filtered.find((s) => s.id === selectedShopId) ?? null : null
 
   const visibleShops = filtered.slice(0, visibleCount)
+  // エリアも検索語もまだ決めていないときは、店舗一覧ではなく都道府県の選択を出す
+  const showAreaPicker = view === 'list' && !prefectureFilter && !expandedRegion && !searchQuery.trim() && !browseAll
   const areaLabel = prefectureFilter ?? expandedRegion
   const sheetFilterCount = (areaLabel ? 1 : 0) + (wpnOnly ? 1 : 0) + (meisterOnly ? 1 : 0)
   const sortLabel = SORT_OPTIONS.find((o) => o.key === selectedSort)?.label
 
   const clearArea = () => {
     setPrefectureFilter(null)
+    setCityFilter(null)
     setExpandedRegion(null)
   }
+
+  // 都道府県を選ぶ（市区町村の絞り込みは解除し、次回のために覚えておく）
+  const selectPrefecture = (prefecture: string | null) => {
+    setPrefectureFilter(prefecture)
+    setCityFilter(null)
+    setBrowseAll(false)
+    if (!prefecture) return
+    setExpandedRegion(REGIONS.find((r) => r.prefectures.includes(prefecture))?.name ?? null)
+    setLastPrefecture(prefecture)
+    try {
+      window.localStorage.setItem(LAST_PREFECTURE_KEY, prefecture)
+    } catch {
+      // 保存できない環境では覚えない
+    }
+  }
+
+  // エリア選択に戻る
+  const backToAreaPicker = () => {
+    clearArea()
+    setBrowseAll(false)
+  }
+
+  // 選んだ都道府県の市区町村（店舗の多い順）
+  const cityOptions = useMemo(() => {
+    if (!prefectureFilter) return []
+    const counts = new Map<string, number>()
+    for (const s of baseFiltered) {
+      if (s.prefecture !== prefectureFilter) continue
+      const city = cityById.get(s.id)
+      if (city) counts.set(city, (counts.get(city) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'))
+  }, [baseFiltered, prefectureFilter, cityById])
+
+  const prefectureCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const s of baseFiltered) counts.set(s.prefecture, (counts.get(s.prefecture) ?? 0) + 1)
+    return counts
+  }, [baseFiltered])
 
   const clearSheetFilters = () => {
     clearArea()
@@ -388,7 +458,7 @@ export default function ShopsPage() {
               {visibleRegions
                 .find((r) => r.name === expandedRegion)
                 ?.prefectures.map((p) => (
-                  <Chip key={p} selected={prefectureFilter === p} onClick={() => setPrefectureFilter(prefectureFilter === p ? null : p)}>
+                  <Chip key={p} selected={prefectureFilter === p} onClick={() => selectPrefecture(prefectureFilter === p ? null : p)}>
                     {p}
                   </Chip>
                 ))}
@@ -449,16 +519,18 @@ export default function ShopsPage() {
                 fitShops={areaShops}
                 selectedShopId={selectedShop?.id ?? null}
                 highlightFormat={selectedFormat}
+                showPrefectures={areaShops === null}
+                onPrefectureModeChange={setPrefectureMode}
               />
             )}
 
-            <MapLegend format={selectedFormat} />
+            {prefectureMode ? <PrefectureLegend /> : <MapLegend format={selectedFormat} />}
 
             {/* ピンを選んだ店舗のプレビュー */}
             {selectedShop ? (
               <div className="absolute z-[1000] bottom-3 inset-x-3 md:right-auto md:w-96">
                 <div className="relative shadow-lg rounded-xl">
-                  <ShopCard shop={selectedShop} nextEvent={nextEvents.get(selectedShop.id)} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
+                  <ShopCard shop={selectedShop} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
                   <button
                     type="button"
                     onClick={() => setSelectedShopId(null)}
@@ -505,7 +577,6 @@ export default function ShopsPage() {
                       <ShopCard
                         key={shop.id}
                         shop={shop}
-                        nextEvent={nextEvents.get(shop.id)}
                         isPr={shop.is_premium && shop.pr_enabled}
                         onClick={() => selectShopFromList(shop)}
                       />
@@ -532,7 +603,6 @@ export default function ShopsPage() {
                   <ShopCard
                     key={shop.id}
                     shop={shop}
-                    nextEvent={nextEvents.get(shop.id)}
                     isPr={shop.is_premium && shop.pr_enabled}
                     showPrefecture={false}
                     onClick={() => selectShopFromList(shop)}
@@ -551,11 +621,52 @@ export default function ShopsPage() {
     <div className="min-h-screen bg-background pb-24">
       {header}
 
+      {showAreaPicker ? (
+        <AreaPicker
+          regions={visibleRegions}
+          counts={prefectureCounts}
+          total={baseFiltered.length}
+          loading={loading}
+          lastPrefecture={lastPrefecture && availablePrefectureSet.has(lastPrefecture) ? lastPrefecture : null}
+          onSelect={selectPrefecture}
+          onBrowseAll={() => setBrowseAll(true)}
+        />
+      ) : (
       <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-3">
-        {/* 絞り込み中の条件（✕で個別に解除） */}
-        {sheetFilterCount > 0 && (
+        {/* 選んだエリア（戻るとエリア選択へ） */}
+        {(areaLabel || browseAll) && !searchQuery.trim() && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={backToAreaPicker}
+                className="-ml-2 h-9 pl-1 pr-2 inline-flex items-center gap-0.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+              >
+                <ChevronLeft size={18} />
+                エリア
+              </button>
+              <h2 className="font-display text-xl text-gray-900">{areaLabel ?? '全国'}</h2>
+            </div>
+            {cityOptions.length > 1 && (
+              <ChipRow>
+                <Chip selected={cityFilter === null} onClick={() => setCityFilter(null)}>
+                  すべて
+                </Chip>
+                {cityOptions.map(([city, n]) => (
+                  <Chip key={city} selected={cityFilter === city} onClick={() => setCityFilter(cityFilter === city ? null : city)}>
+                    {city}
+                    <span className="ml-1 tabular-nums opacity-70">{n}</span>
+                  </Chip>
+                ))}
+              </ChipRow>
+            )}
+          </div>
+        )}
+
+        {/* 絞り込み中の条件（✕で個別に解除）。エリアは上の見出しで分かるので、検索中だけ出す */}
+        {(wpnOnly || meisterOnly || (areaLabel && searchQuery.trim())) && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            {areaLabel && <ActiveFilter label={areaLabel} onRemove={clearArea} />}
+            {areaLabel && searchQuery.trim() && <ActiveFilter label={areaLabel} onRemove={clearArea} />}
             {wpnOnly && <ActiveFilter label="WPNプレミアム" onRemove={() => setWpnOnly(false)} />}
             {meisterOnly && <ActiveFilter label="マイスター" onRemove={() => setMeisterOnly(false)} />}
           </div>
@@ -563,7 +674,7 @@ export default function ShopsPage() {
 
         <div className="flex items-center justify-between text-xs text-gray-600">
           <span>
-            {areaLabel ?? '全国'}の店舗
+            {cityFilter ?? areaLabel ?? '全国'}の店舗
             {!loading && (
               <>
                 {' '}<span className="font-bold text-gray-900 tabular-nums">{filtered.length}</span>件
@@ -599,7 +710,7 @@ export default function ShopsPage() {
           <>
             <div className="flex flex-col gap-2">
               {visibleShops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} nextEvent={nextEvents.get(shop.id)} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
+                <ShopCard key={shop.id} shop={shop} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
               ))}
             </div>
             {filtered.length > visibleCount && (
@@ -613,6 +724,7 @@ export default function ShopsPage() {
           </>
         )}
       </div>
+      )}
 
       {sheet}
     </div>
@@ -647,6 +759,22 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
+  )
+}
+
+function PrefectureLegend() {
+  return (
+    <div className="absolute z-[1000] top-3 left-3 max-w-[calc(100%-5rem)] bg-white/95 rounded-xl shadow-md border border-gray-200 px-3 py-2 text-xs text-gray-700 flex flex-col gap-1.5">
+      <span>数字＝都道府県の店舗数（タップで拡大）</span>
+      <span className="flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] text-gray-500">
+        {[...COUNT_STEPS].reverse().map((s) => (
+          <span key={s.min} className="inline-flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.fill }} />
+            {s.label}
+          </span>
+        ))}
+      </span>
+    </div>
   )
 }
 

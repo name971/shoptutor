@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { invalidateCached } from '@/lib/clientCache'
 import { Star } from 'lucide-react'
 
 type Props = {
@@ -64,6 +65,9 @@ export default function FavoriteButton({ shopId }: Props) {
 
     if (error) {
       setFavorited(!next)
+    } else {
+      // 店舗タブのおすすめ順に使うお気に入り数を取り直させる
+      invalidateCached('shops:favorite-counts')
     }
     setPending(false)
   }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Event, OTHER_FORMAT_KEYS, FORMAT_HEX } from '@/types'
 import Chip from '@/components/ui/Chip'
+import ReminderButton from '@/components/event/ReminderButton'
 import ChipRow from '@/components/ui/ChipRow'
 import FormatShareBar from '@/components/charts/FormatShareBar'
 import WeekdayEventsChart from '@/components/charts/WeekdayEventsChart'
@@ -19,11 +20,14 @@ type Props = {
   formatCounts: FormatCount[]
   events: Event[]
   weeklyEventCount: number
+  // リマインダーに保存する店舗の情報
+  shopId: string
+  shopName: string
 }
 
 const PAGE_SIZE = 10
 
-export default function OfficialEventsSection({ formatCounts, events, weeklyEventCount }: Props) {
+export default function OfficialEventsSection({ formatCounts, events, weeklyEventCount, shopId, shopName }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -109,12 +113,23 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
         <>
           <div className="flex flex-col gap-1">
             {visibleEvents.map((event) => (
-              <div key={event.id} className="flex items-center gap-3 text-sm py-2 border-t">
+              <div key={event.id} className="flex items-center gap-3 text-sm py-1 border-t">
                 <span className="w-28 flex-shrink-0 text-xs font-bold text-gray-900 tabular-nums">
                   {formatEventWhen(event.held_at, event.start_time)}
                 </span>
                 <span className="text-gray-700 truncate flex-1 min-w-0">{event.title}</span>
                 <FormatBadge format={event.format} size="sm" />
+                <ReminderButton
+                  className="-mr-2"
+                  source={{
+                    shopId,
+                    shopName,
+                    title: event.title,
+                    format: event.format,
+                    heldAt: event.held_at,
+                    startTime: event.start_time,
+                  }}
+                />
               </div>
             ))}
           </div>
