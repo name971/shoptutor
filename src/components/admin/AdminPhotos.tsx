@@ -1,104 +1,106 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SkeletonBlock } from '@/components/ui/Skeleton'
+import StorageUsageCard from './StorageUsageCard'
+import PhotoViewer from './PhotoViewer'
+import { useAdminActions } from './useAdminActions'
+import { type AdminPhoto, formatDate } from './types'
 
-type Photo = {
-  id: string
-  url: string
-  created_at: string
-  shops: { id: string; name: string } | null
-  profiles: { name: string } | null
-}
-
-type StorageUsage = {
-  usedBytes: number
-  limitBytes: number
-  fileCount: number
-}
-
-function formatMB(bytes: number) {
-  return (bytes / 1024 / 1024).toFixed(1)
+async function fetchPhotos(offset: number) {
+  const res = await fetch(`/api/admin/photos?offset=${offset}`)
+  const data = await res.json().catch(() => ({}))
+  return { list: (data.photos ?? []) as AdminPhoto[], total: (data.total ?? 0) as number }
 }
 
 export default function AdminPhotos() {
-  const [photos, setPhotos] = useState<Photo[]>([])
+  const [photos, setPhotos] = useState<AdminPhoto[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [usage, setUsage] = useState<StorageUsage | null>(null)
-  const [usageLoading, setUsageLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [viewing, setViewing] = useState<AdminPhoto | null>(null)
+  const { deletePhoto, confirmDialog } = useAdminActions()
 
   useEffect(() => {
-    fetch('/api/admin/photos')
-      .then((res) => res.json())
-      .then((data) => {
-        setPhotos(data.photos ?? [])
-        setLoading(false)
-      })
-    fetch('/api/admin/storage-usage')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setUsage(data)
-        setUsageLoading(false)
-      })
+    fetchPhotos(0).then(({ list, total }) => {
+      setPhotos(list)
+      setTotal(total)
+      setLoading(false)
+    })
   }, [])
 
-  const handleDelete = async (photoId: string) => {
-    if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
-
-    const res = await fetch(`/api/admin/photos/${photoId}`, { method: 'DELETE' })
-    if (res.ok) {
-      setPhotos((prev) => prev.filter((p) => p.id !== photoId))
-    }
+  const loadMore = async () => {
+    setLoadingMore(true)
+    const { list } = await fetchPhotos(photos.length)
+    setPhotos((prev) => [...prev, ...list])
+    setLoadingMore(false)
   }
-
-  if (loading) return <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
-
-  const usagePercent = usage ? Math.min(100, (usage.usedBytes / usage.limitBytes) * 100) : 0
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="bg-white rounded-xl border p-3">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="font-medium text-gray-700">ストレージ使用量</span>
-          {!usageLoading && usage && (
-            <span className="text-gray-500">
-              {formatMB(usage.usedBytes)} MB / {formatMB(usage.limitBytes)} MB（{usage.fileCount}枚）
-            </span>
-          )}
-        </div>
-        <div className="bg-gray-100 rounded-full h-1.5">
-          <div
-            className={`rounded-full h-1.5 transition-all ${usagePercent > 80 ? 'bg-red-400' : 'bg-blue-400'}`}
-            style={{ width: usageLoading ? '0%' : `${usagePercent}%` }}
-          />
-        </div>
+      <StorageUsageCard />
+
+      <div className="text-xs text-slate-500">
+        {loading ? '　' : <>投稿された写真 <span className="font-bold text-slate-900 tabular-nums">{total}</span>枚（新しい順・タップで拡大）</>}
       </div>
 
-      <div className="text-xs font-medium text-gray-500">新着の写真</div>
-
-      <div className="grid grid-cols-3 gap-2">
-      {photos.length === 0 ? (
-        <div className="col-span-3 text-center text-gray-400 text-sm py-8">写真がありません</div>
+      {loading ? (
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <SkeletonBlock key={i} className="aspect-square" />
+          ))}
+        </div>
+      ) : photos.length === 0 ? (
+        <p className="text-center text-sm text-slate-500 py-8">写真はありません</p>
       ) : (
-        photos.map((photo) => (
-          <div key={photo.id} className="bg-white rounded-xl border overflow-hidden">
-            <div className="aspect-square">
-              {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
-              <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
-            </div>
-            <div className="p-1.5 text-[11px] text-gray-500">
-              <div className="truncate">{photo.shops?.name}</div>
-              <div className="truncate text-gray-400">{photo.profiles?.name ?? '匿名'}</div>
+        <>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            {photos.map((photo) => (
               <button
-                onClick={() => handleDelete(photo.id)}
-                className="text-red-500 hover:underline mt-1"
+                key={photo.id}
+                type="button"
+                onClick={() => setViewing(photo)}
+                className="surface overflow-hidden text-left hover:shadow-md transition-shadow"
+                aria-label={`${photo.shops?.name ?? ''}の写真を大きく見る`}
               >
-                削除
+                <div className="aspect-square bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
+                  <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                </div>
+                <div className="p-1.5 text-[11px] leading-tight">
+                  <div className="truncate font-bold text-slate-800">{photo.shops?.name}</div>
+                  <div className="truncate text-slate-500">
+                    {photo.profiles?.name ?? '匿名'} · {formatDate(photo.created_at)}
+                  </div>
+                </div>
               </button>
-            </div>
+            ))}
           </div>
-        ))
+          {photos.length < total && (
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full h-11 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {loadingMore ? '読み込み中…' : `もっと見る（残り${total - photos.length}枚）`}
+            </button>
+          )}
+        </>
       )}
-      </div>
+
+      <PhotoViewer
+        photo={viewing}
+        onClose={() => setViewing(null)}
+        onDelete={async (photo) => {
+          if (await deletePhoto(photo)) {
+            setViewing(null)
+            setPhotos((prev) => prev.filter((p) => p.id !== photo.id))
+            setTotal((t) => t - 1)
+          }
+        }}
+      />
+      {confirmDialog}
     </div>
   )
 }

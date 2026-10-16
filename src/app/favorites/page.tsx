@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import EventNotice from '@/components/shared/EventNotice'
-import { isEventPast, jstDateKey, formatDayHeading, isStartingSoon } from '@/lib/eventTime'
+import { isEventPast, jstDateKey, addDaysToKey, formatDayHeading, isStartingSoon } from '@/lib/eventTime'
+import DateStrip from '@/components/event/DateStrip'
 import EventRow from '@/components/event/EventRow'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { groupByDate } from '@/lib/groupByDate'
@@ -17,9 +18,10 @@ import Chip from '@/components/ui/Chip'
 
 type FavoriteEvent = Event & { shops: { name: string } | null }
 
+// 店舗の情報は店舗タブで見られるので、お気に入りはまず今週のイベントを出す
 const TABS = [
-  { key: 'shops', label: '店舗一覧' },
   { key: 'events', label: '今週のイベント' },
+  { key: 'shops', label: '店舗一覧' },
 ] as const
 
 const FORMAT_FILTER_STORAGE_KEY = 'favorites-event-format-filter'
@@ -29,13 +31,15 @@ const PAGE_SIZE = 10
 export default function FavoritesPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
-  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('shops')
+  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('events')
   const [shops, setShops] = useState<Shop[]>([])
   const [events, setEvents] = useState<FavoriteEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(new Set())
   const [visibleEventCount, setVisibleEventCount] = useState(PAGE_SIZE)
   const [pageStateRestored, setPageStateRestored] = useState(false)
+  // 日付の選択：'YYYY-MM-DD'（その日だけ）か 'week'（7日間）。お気に入りは件数が少ないので7日間から始める
+  const [day, setDay] = useState<string>('week')
 
   useEffect(() => {
     const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
@@ -48,8 +52,10 @@ export default function FavoritesPage() {
       const savedState = sessionStorage.getItem(PAGE_STATE_STORAGE_KEY)
       if (savedState) {
         const parsed = JSON.parse(savedState)
-        setTab(parsed.tab ?? 'shops')
+        setTab(parsed.tab ?? 'events')
         setVisibleEventCount(parsed.visibleEventCount ?? PAGE_SIZE)
+        // 前回選んだ日が過ぎていたら7日間に戻す
+        if (typeof parsed.day === 'string' && (parsed.day === 'week' || parsed.day >= jstDateKey())) setDay(parsed.day)
       }
     } catch {
       // 復元失敗は無視
@@ -60,11 +66,11 @@ export default function FavoritesPage() {
   useEffect(() => {
     if (!pageStateRestored) return
     try {
-      sessionStorage.setItem(PAGE_STATE_STORAGE_KEY, JSON.stringify({ tab, visibleEventCount }))
+      sessionStorage.setItem(PAGE_STATE_STORAGE_KEY, JSON.stringify({ tab, visibleEventCount, day }))
     } catch {
       // 保存失敗は無視
     }
-  }, [pageStateRestored, tab, visibleEventCount])
+  }, [pageStateRestored, tab, visibleEventCount, day])
 
   const toggleFormat = (format: string) => {
     setSelectedFormats((prev) => {
@@ -77,13 +83,20 @@ export default function FavoritesPage() {
     setVisibleEventCount(PAGE_SIZE)
   }
 
-  const filteredEvents =
+  const formatEvents =
     selectedFormats.size === 0
       ? events
       : events.filter((e) =>
           selectedFormats.has(e.format) ||
           (selectedFormats.has('other') && OTHER_FORMAT_KEYS.includes(e.format))
         )
+  // 日付の帯に出す日ごとの件数（フォーマットの絞り込みを反映）
+  const dayCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const e of formatEvents) counts.set(e.held_at, (counts.get(e.held_at) ?? 0) + 1)
+    return counts
+  }, [formatEvents])
+  const filteredEvents = day === 'week' ? formatEvents : formatEvents.filter((e) => e.held_at === day)
   const visibleEvents = filteredEvents.slice(0, visibleEventCount)
 
   useEffect(() => {
@@ -118,7 +131,8 @@ export default function FavoritesPage() {
       setShops(shopsData ?? [])
 
       const today = jstDateKey()
-      const nextWeek = jstDateKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+      // 日付の帯（今日から7日間）と同じ範囲
+      const nextWeek = addDaysToKey(today, 6)
 
       const { data: eventsData } = await supabase
         .from('events')
@@ -153,6 +167,18 @@ export default function FavoritesPage() {
           ))}
         </div>
         </div>
+        {tab === 'events' && (
+          <div className="max-w-lg mx-auto px-3 pb-2">
+            <DateStrip
+              selected={day}
+              onSelect={(d) => {
+                setDay(d)
+                setVisibleEventCount(PAGE_SIZE)
+              }}
+              counts={dayCounts}
+            />
+          </div>
+        )}
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4">
@@ -180,7 +206,7 @@ export default function FavoritesPage() {
         ) : (
           <>
             <EventNotice />
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mt-2 mb-4">
               {FORMATS.map((f) => (
                 <Chip key={f.key} selected={selectedFormats.has(f.key)} onClick={() => toggleFormat(f.key)}>
                   {f.label}
@@ -191,7 +217,9 @@ export default function FavoritesPage() {
               <div className="text-center text-slate-500 text-sm py-8">
                 {events.length === 0
                   ? '今週のイベントはありません'
-                  : '該当するフォーマットのイベントはありません'}
+                  : formatEvents.length === 0
+                    ? '該当するフォーマットのイベントはありません'
+                    : 'この日のイベントはありません'}
               </div>
             ) : (
               <>

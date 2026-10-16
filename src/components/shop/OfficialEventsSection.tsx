@@ -3,12 +3,13 @@
 import { useMemo, useState } from 'react'
 import { Event, OTHER_FORMAT_KEYS, FORMAT_HEX } from '@/types'
 import Chip from '@/components/ui/Chip'
-import ReminderButton from '@/components/event/ReminderButton'
 import ChipRow from '@/components/ui/ChipRow'
 import FormatShareBar from '@/components/charts/FormatShareBar'
 import WeekdayEventsChart from '@/components/charts/WeekdayEventsChart'
-import FormatBadge from '@/components/ui/FormatBadge'
-import { isEventPast, formatEventWhen } from '@/lib/eventTime'
+import EventRow from '@/components/event/EventRow'
+import { groupByDate } from '@/lib/groupByDate'
+import { groupSameShopAndTime } from '@/lib/groupEvents'
+import { isEventPast, isStartingSoon, formatDayHeading } from '@/lib/eventTime'
 
 type FormatCount = {
   key: string
@@ -111,34 +112,39 @@ export default function OfficialEventsSection({ formatCounts, events, weeklyEven
 
       {filteredEvents.length > 0 ? (
         <>
-          <div className="flex flex-col gap-1">
-            {visibleEvents.map((event) => (
-              <div key={event.id} className="flex items-center gap-3 text-sm py-1 border-t">
-                <span className="w-28 flex-shrink-0 text-xs font-bold text-gray-900 tabular-nums">
-                  {formatEventWhen(event.held_at, event.start_time)}
-                </span>
-                <span className="text-gray-700 truncate flex-1 min-w-0">{event.title}</span>
-                <FormatBadge format={event.format} size="sm" />
-                <ReminderButton
-                  className="-mr-2"
-                  source={{
-                    shopId,
-                    shopName,
-                    title: event.title,
-                    format: event.format,
-                    heldAt: event.held_at,
-                    startTime: event.start_time,
-                  }}
-                />
-              </div>
+          {/* イベントタブと同じタイムライン（店名は出さない） */}
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
+            {groupByDate(visibleEvents).map((group) => (
+              <section key={group.date} className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-900 pb-1">{formatDayHeading(group.date)}</h3>
+                {groupSameShopAndTime(group.items).map((bundle) => (
+                  <EventRow
+                    key={bundle[0].id}
+                    startTime={bundle[0].start_time}
+                    soon={isStartingSoon(bundle[0].held_at, bundle[0].start_time)}
+                    items={bundle.map((e) => ({
+                      title: e.title,
+                      format: e.format,
+                      reminder: {
+                        shopId,
+                        shopName,
+                        title: e.title,
+                        format: e.format,
+                        heldAt: e.held_at,
+                        startTime: e.start_time,
+                      },
+                    }))}
+                  />
+                ))}
+              </section>
             ))}
           </div>
           {filteredEvents.length > visibleCount && (
             <button
               onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
-              className="w-full text-center text-sm font-medium text-blue-600 hover:underline pt-3"
+              className="w-full h-10 mt-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              もっと見る
+              もっと見る（残り{filteredEvents.length - visibleCount}件）
             </button>
           )}
         </>

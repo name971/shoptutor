@@ -37,7 +37,20 @@ type View = 'list' | 'map'
 
 const PAGE_SIZE = 20
 
-const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters_v2'
+const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters_v3'
+// フォーマット・店舗の特徴・並び順は好みなので、訪問をまたいで端末に覚えておく
+const PREFS_STORAGE_KEY = 'shoptutor_shops_prefs'
+
+type ShopPrefs = { selectedFormat: string | null; wpnOnly: boolean; meisterOnly: boolean; selectedSort: string }
+
+function loadSavedPrefs(): Partial<ShopPrefs> | null {
+  try {
+    const raw = window.localStorage.getItem(PREFS_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as Partial<ShopPrefs>) : null
+  } catch {
+    return null
+  }
+}
 const SHOP_LIST_CACHE_KEY = 'shops:list'
 const FAVORITE_COUNTS_CACHE_KEY = 'shops:favorite-counts'
 
@@ -104,12 +117,16 @@ export default function ShopsPage() {
       setCityFilter(saved.cityFilter ?? null)
       setBrowseAll(saved.browseAll ?? false)
       setExpandedRegion(saved.expandedRegion ?? null)
-      setSelectedFormat(saved.selectedFormat ?? null)
-      setWpnOnly(saved.wpnOnly ?? false)
-      setMeisterOnly(saved.meisterOnly ?? false)
       setSearchQuery(saved.searchQuery ?? '')
       setVisibleCount(saved.visibleCount ?? PAGE_SIZE)
       setView(saved.view ?? 'list')
+    }
+    const prefs = loadSavedPrefs()
+    if (prefs) {
+      setSelectedFormat(prefs.selectedFormat ?? null)
+      setWpnOnly(prefs.wpnOnly ?? false)
+      setMeisterOnly(prefs.meisterOnly ?? false)
+      if (prefs.selectedSort && SORT_OPTIONS.some((o) => o.key === prefs.selectedSort)) setSelectedSort(prefs.selectedSort)
     }
     try {
       setLastPrefecture(window.localStorage.getItem(LAST_PREFECTURE_KEY))
@@ -246,9 +263,6 @@ export default function ShopsPage() {
           cityFilter,
           browseAll,
           expandedRegion,
-          selectedFormat,
-          wpnOnly,
-          meisterOnly,
           searchQuery,
           visibleCount,
           view,
@@ -257,7 +271,17 @@ export default function ShopsPage() {
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, prefectureFilter, cityFilter, browseAll, expandedRegion, selectedFormat, wpnOnly, meisterOnly, searchQuery, visibleCount, view])
+  }, [filtersRestored, prefectureFilter, cityFilter, browseAll, expandedRegion, searchQuery, visibleCount, view])
+
+  useEffect(() => {
+    if (!filtersRestored) return
+    try {
+      const prefs: ShopPrefs = { selectedFormat, wpnOnly, meisterOnly, selectedSort }
+      window.localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs))
+    } catch {
+      // 保存失敗は無視
+    }
+  }, [filtersRestored, selectedFormat, wpnOnly, meisterOnly, selectedSort])
 
   // エリアを選んだら地図をそのエリアの店舗に合わせる（他の絞り込みでは地図を動かさない）
   const areaShops = useMemo(() => {
