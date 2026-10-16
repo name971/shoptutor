@@ -23,16 +23,9 @@ import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
 import AuthStatus from '@/components/auth/AuthStatus'
-import { LocateFixed, MapPin, X, Store } from 'lucide-react'
-
-const RADIUS_OPTIONS = [
-  { key: '3', label: '3km', km: 3 },
-  { key: '5', label: '5km', km: 5 },
-  { key: '10', label: '10km', km: 10 },
-  { key: 'all', label: '制限なし', km: null },
-] as const
-
-type RadiusKey = (typeof RADIUS_OPTIONS)[number]['key']
+import EventAreaSheet, { areaLabel, type EventArea } from '@/components/event/EventAreaSheet'
+import { LAST_PREFECTURE_KEY } from '@/lib/area'
+import { LocateFixed, MapPin, X, Store, ChevronDown } from 'lucide-react'
 
 // 日付の選択：'YYYY-MM-DD'（その日だけ）か 'week'（今日から7日間）
 type DayKey = string
@@ -41,9 +34,10 @@ const NO_COUNTS = new Map<string, number>()
 // Supabaseの1回の取得上限（既定1000件）を超えないよう、ページ単位で取得する
 const PAGE_SIZE = 50
 
-// 距離の計算に使う店舗の座標（現在地を使うときだけ取得する）
-type ShopCoord = {
+// 店舗の都道府県・座標（現在地の距離計算・都道府県ごとの件数・エリア選択の店舗数に使う。必要なときだけ取得する）
+type ShopGeo = {
   id: string
+  prefecture: string
   lat: number | null
   lng: number | null
 }
@@ -59,7 +53,9 @@ type EventItem = {
   shops: { name: string; prefecture: string } | null
 }
 
-const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters_v2'
+const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters_v3'
+// 「どこで」は訪問をまたいで覚えておく（毎回選び直さなくていいように）
+const AREA_STORAGE_KEY = 'shoptutor_home_area'
 // 「現在地を使う」を一度押したユーザーは、次回以降は説明カードを出さずに位置情報を取得する
 const LOCATION_OPT_IN_KEY = 'shoptutor_location_opt_in'
 const LOCATION_SKIPPED_KEY = 'shoptutor_location_skipped'
@@ -70,7 +66,6 @@ let lastKnownLocation: { lat: number; lng: number } | null = null
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'skipped' | 'unsupported'
 
 function loadSavedFilters(): {
-  radiusKey: RadiusKey
   selectedFormat: string | null
   day: DayKey
 } | null {
@@ -78,6 +73,27 @@ function loadSavedFilters(): {
   try {
     const raw = window.sessionStorage.getItem(FILTERS_STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function loadSavedArea(): EventArea | null {
+  try {
+    const raw = window.localStorage.getItem(AREA_STORAGE_KEY)
+    const area = raw ? (JSON.parse(raw) as EventArea) : null
+    if (area?.kind === 'near' && typeof area.km === 'number') return area
+    if (area?.kind === 'prefectures' && Array.isArray(area.prefectures) && area.prefectures.length > 0) return area
+    if (area?.kind === 'all') return area
+  } catch {
+    // 読めなければ未設定として扱う
+  }
+  return null
+}
+
+function readLocal(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key)
   } catch {
     return null
   }
@@ -94,13 +110,15 @@ export default function HomePage() {
   // 同じ訪問中にタブを移動して戻ってきたときは、前回の現在地をそのまま使う（取り直しによる二重取得を防ぐ）
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(() => lastKnownLocation)
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(() => (lastKnownLocation ? 'granted' : 'idle'))
-  const [radiusKey, setRadiusKey] = useState<RadiusKey>('5')
+  // どこのイベントを見るか（null＝まだ決めていない。全国を並べる前にエリアを選んでもらう）
+  const [area, setArea] = useState<EventArea | null>(null)
+  const [areaSheetOpen, setAreaSheetOpen] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [formatFromProfile, setFormatFromProfile] = useState(false)
   const [day, setDay] = useState<DayKey>(() => jstDateKey())
   const [dayCounts, setDayCounts] = useState<Map<string, number>>(new Map())
   const [filtersRestored, setFiltersRestored] = useState(false)
-  const [shopCoords, setShopCoords] = useState<ShopCoord[] | null>(null)
+  const [shopGeo, setShopGeo] = useState<ShopGeo[] | null>(null)
   const [events, setEvents] = useState<EventItem[]>([])
   const [totalCount, setTotalCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -110,40 +128,58 @@ export default function HomePage() {
   // サーバーとクライアントの初回描画を一致させるため、sessionStorageからの復元は
   // マウント後のuseEffectで行う（useStateの遅延初期化だとSSR/CSRでハイドレーション不整合が起きる）
   useEffect(() => {
-    const saved = loadSavedFilters()
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
-      setRadiusKey(saved.radiusKey ?? '5')
-      setSelectedFormat(saved.selectedFormat ?? null)
-      // 前回の訪問で選んだ日が過ぎていたら今日に戻す
-      setDay(saved.day && (saved.day === 'week' || saved.day >= jstDateKey()) ? saved.day : jstDateKey())
-      setFiltersRestored(true)
-      return
-    }
-    // 保存済みの条件がなければ、ログインユーザーのメインフォーマットで最初から絞り込む
-    const preselectMainFormat = async () => {
+    const init = async () => {
+      const saved = loadSavedFilters()
+      if (saved) {
+        setSelectedFormat(saved.selectedFormat ?? null)
+        // 前回の訪問で選んだ日が過ぎていたら今日に戻す
+        setDay(saved.day && (saved.day === 'week' || saved.day >= jstDateKey()) ? saved.day : jstDateKey())
+      }
+      let initialArea = loadSavedArea()
       try {
+        // 保存済みの条件がないものだけ、ログイン情報から最初の値を決める
+        let userId: string | null = null
+        const needsUser = !saved || (!initialArea && readLocal(LOCATION_OPT_IN_KEY) !== '1' && !readLocal(LAST_PREFECTURE_KEY))
         const supabase = createClient()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('main_format')
-            .eq('id', user.id)
-            .maybeSingle()
+        if (needsUser) {
+          const { data } = await supabase.auth.getUser()
+          userId = data.user?.id ?? null
+        }
+        // メインフォーマットで最初から絞り込む
+        if (!saved && userId) {
+          const { data: profile } = await supabase.from('profiles').select('main_format').eq('id', userId).maybeSingle()
           const mainFormat = profile?.main_format
           if (mainFormat && FORMATS.some((f) => f.key === mainFormat)) {
             setSelectedFormat(mainFormat)
             setFormatFromProfile(true)
           }
         }
+        // 最初のエリア：現在地を許可済みなら周辺5km → 店舗タブで最後に見た県 → お気に入り店舗が一番多い県
+        if (!initialArea) {
+          const lastPrefecture = readLocal(LAST_PREFECTURE_KEY)
+          if (readLocal(LOCATION_OPT_IN_KEY) === '1') {
+            initialArea = { kind: 'near', km: 5 }
+          } else if (lastPrefecture) {
+            initialArea = { kind: 'prefectures', prefectures: [lastPrefecture] }
+          } else if (userId) {
+            const { data: favs } = await supabase.from('shop_favorites').select('shops(prefecture)').eq('user_id', userId)
+            const counts = new Map<string, number>()
+            for (const f of (favs ?? []) as unknown as { shops: { prefecture: string } | null }[]) {
+              const p = f.shops?.prefecture
+              if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
+            }
+            const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+            if (top) initialArea = { kind: 'prefectures', prefectures: [top] }
+          }
+        }
+      } catch {
+        // 取れなくても選び直せるので無視
       } finally {
+        setArea(initialArea)
         setFiltersRestored(true)
       }
     }
-    preselectMainFormat()
+    init()
   }, [])
 
   useEffect(() => {
@@ -151,14 +187,16 @@ export default function HomePage() {
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({ radiusKey, selectedFormat, day })
+        JSON.stringify({ selectedFormat, day })
       )
+      if (area) window.localStorage.setItem(AREA_STORAGE_KEY, JSON.stringify(area))
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, radiusKey, selectedFormat, day])
+  }, [filtersRestored, area, selectedFormat, day])
 
-  const requestLocation = () => {
+  // switchToNear：取れたら「現在地の周辺」に切り替える（ボタンから使ったとき）
+  const requestLocation = (switchToNear = false) => {
     if (!navigator.geolocation) {
       setLocationStatus('unsupported')
       return
@@ -169,6 +207,10 @@ export default function HomePage() {
         lastKnownLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         setLocation(lastKnownLocation)
         setLocationStatus('granted')
+        if (switchToNear) {
+          setArea({ kind: 'near', km: 5 })
+          setAreaSheetOpen(false)
+        }
         try {
           localStorage.setItem(LOCATION_OPT_IN_KEY, '1')
           localStorage.removeItem(LOCATION_SKIPPED_KEY)
@@ -178,15 +220,6 @@ export default function HomePage() {
       },
       () => setLocationStatus('denied')
     )
-  }
-
-  const skipLocation = () => {
-    setLocationStatus('skipped')
-    try {
-      localStorage.setItem(LOCATION_SKIPPED_KEY, '1')
-    } catch {
-      // 保存失敗は無視
-    }
   }
 
   // いきなり許可ダイアログを出さず、以前に許可済みの場合のみ自動で取得する
@@ -221,38 +254,51 @@ export default function HomePage() {
       .catch(() => {})
   }, [])
 
-  // 店舗の座標は現在地を使うときだけ必要（距離の計算・半径での絞り込み）
+  // 店舗の一覧（都道府県・座標）は、現在地・都道府県で絞るとき・エリアを選ぶときだけ取得する
+  const needsShopGeo = location !== null || area?.kind === 'prefectures' || areaSheetOpen
   useEffect(() => {
-    if (!location) return
-    cached('home:shop-coords', 10 * 60 * 1000, async () => {
+    if (!needsShopGeo) return
+    cached('home:shop-geo', 10 * 60 * 1000, async () => {
       const { data, error } = await createClient()
         .from('shops')
-        .select('id, lat, lng')
+        .select('id, prefecture, lat, lng')
         .eq('status', 'active')
       if (error) throw error
-      return (data ?? []) as ShopCoord[]
+      return (data ?? []) as ShopGeo[]
     })
-      .then(setShopCoords)
-      .catch(() => setShopCoords([]))
-  }, [location])
+      .then(setShopGeo)
+      .catch(() => setShopGeo([]))
+  }, [needsShopGeo])
 
-  const radiusKm = RADIUS_OPTIONS.find((r) => r.key === radiusKey)?.km ?? null
-  const isRadiusLimited = location !== null && radiusKm !== null
+  const isNear = area?.kind === 'near'
+  const radiusKm = area?.kind === 'near' ? area.km : null
+  // 「現在地の周辺」を選んでいるのに現在地が使えない（拒否・未対応・取得前に閉じた）
+  const nearUnavailable =
+    isNear && !location && (locationStatus === 'denied' || locationStatus === 'unsupported' || locationStatus === 'skipped' || locationStatus === 'idle')
+  // 一覧を出せる状態か（エリア未選択、または現在地待ちのときは出さない）
+  const areaReady = area !== null && (!isNear || (location !== null && shopGeo !== null))
 
-  // 現在地からの距離と、半径内の店舗
+  // 現在地からの距離と、対象の店舗（周辺＝半径内、都道府県＝その県の店舗。日ごとの件数の集計に使う）
   const { distanceById, targetShopIds } = useMemo(() => {
     const distances = new Map<string, number>()
     const ids: string[] = []
-    if (location) {
-      ;(shopCoords ?? []).forEach((s) => {
-        if (s.lat === null || s.lng === null) return
+    ;(shopGeo ?? []).forEach((s) => {
+      if (location && s.lat !== null && s.lng !== null) {
         const distance = haversineDistanceKm(location.lat, location.lng, s.lat, s.lng)
         distances.set(s.id, distance)
-        if (radiusKm === null || distance <= radiusKm) ids.push(s.id)
-      })
-    }
+        if (radiusKm !== null && distance <= radiusKm) ids.push(s.id)
+      }
+      if (area?.kind === 'prefectures' && area.prefectures.includes(s.prefecture)) ids.push(s.id)
+    })
     return { distanceById: distances, targetShopIds: ids }
-  }, [shopCoords, location, radiusKm])
+  }, [shopGeo, location, radiusKm, area])
+
+  // エリア選択に出す都道府県ごとの店舗数
+  const prefectureShopCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const s of shopGeo ?? []) counts.set(s.prefecture, (counts.get(s.prefecture) ?? 0) + 1)
+    return counts
+  }, [shopGeo])
 
   const fetchPage = useCallback(
     async (offset: number) => {
@@ -268,12 +314,13 @@ export default function HomePage() {
         .gte('held_at', from)
         .lte('held_at', to)
 
-      // 半径で絞る場合は対象店舗のIDで、全国の場合は店舗のstatusで絞る
-      // （全国分のIDを並べるとURLが長くなりすぎるため）
-      if (isRadiusLimited) {
+      // 周辺は半径内の店舗IDで、都道府県・全国は店舗の都道府県・statusで絞る
+      // （都道府県や全国の店舗IDを並べるとURLが長くなりすぎるため）
+      if (area?.kind === 'near') {
         query = query.in('shop_id', targetShopIds)
       } else {
         query = query.eq('shops.status', 'active')
+        if (area?.kind === 'prefectures') query = query.in('shops.prefecture', area.prefectures)
       }
 
       // 今日の分は、開始時刻を過ぎたイベントを除く（時刻不明のものは残す）
@@ -293,18 +340,18 @@ export default function HomePage() {
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
     },
-    [day, selectedFormat, targetShopIds, isRadiusLimited]
+    [day, selectedFormat, targetShopIds, area]
   )
 
   useEffect(() => {
     // 保存済み条件・メインフォーマットの反映が終わるまでは取得しない（二重取得とチラつき防止）
     // 現在地を使うときは、半径内の店舗を決めるための座標が届くまで待つ
-    if (!filtersRestored || (isRadiusLimited && shopCoords === null)) return
+    if (!filtersRestored || !areaReady) return
     const requestId = ++requestIdRef.current
 
     const load = async () => {
       setLoading(true)
-      if (isRadiusLimited && targetShopIds.length === 0) {
+      if (isNear && targetShopIds.length === 0) {
         setEvents([])
         setTotalCount(0)
         setLoading(false)
@@ -317,13 +364,13 @@ export default function HomePage() {
       setLoading(false)
     }
     load()
-  }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, fetchPage])
+  }, [filtersRestored, areaReady, isNear, targetShopIds, fetchPage])
 
   // カレンダー帯に出す日ごとの件数（フォーマット・半径の絞り込みを反映。7日分を1回で取得）
   useEffect(() => {
-    if (!filtersRestored || (isRadiusLimited && shopCoords === null)) return
-    // 半径内に店舗がないときは取得しない（表示側で0件扱いにする）
-    if (isRadiusLimited && targetShopIds.length === 0) return
+    if (!filtersRestored || !area) return
+    // 周辺・都道府県は対象の店舗が決まるまで待つ。対象がないときは取得しない（表示側で0件扱いにする）
+    if (area.kind !== 'all' && (shopGeo === null || targetShopIds.length === 0)) return
     const today = jstDateKey()
     const formats = selectedFormat === 'other' ? OTHER_FORMAT_KEYS : selectedFormat ? [selectedFormat] : null
     let cancelled = false
@@ -332,7 +379,7 @@ export default function HomePage() {
         p_from: today,
         p_to: addDaysToKey(today, 6),
         p_formats: formats,
-        p_shop_ids: isRadiusLimited ? targetShopIds : null,
+        p_shop_ids: area.kind === 'all' ? null : targetShopIds,
       })
       .then(({ data, error }) => {
         if (cancelled || error) return
@@ -342,7 +389,7 @@ export default function HomePage() {
     return () => {
       cancelled = true
     }
-  }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, selectedFormat])
+  }, [filtersRestored, area, shopGeo, targetShopIds, selectedFormat])
 
   const loadMore = async () => {
     const requestId = requestIdRef.current
@@ -356,7 +403,9 @@ export default function HomePage() {
 
   const groups = useMemo(() => groupByDate(events), [events])
 
-  const showLocationPrompt = !location && (locationStatus === 'idle' || locationStatus === 'requesting')
+  // エリアが決まっていない（または周辺を選んだのに現在地が使えない）ときは、一覧の代わりに選んでもらう
+  const showAreaPrompt = filtersRestored && (area === null || nearUnavailable)
+  const noTargetShops = area !== null && area.kind !== 'all' && shopGeo !== null && targetShopIds.length === 0
   const hasMore = totalCount !== null && events.length < totalCount
 
   return (
@@ -367,37 +416,20 @@ export default function HomePage() {
             <div className="font-display text-sm text-blue-600 leading-none mb-1">ShopTutor</div>
             <h1 className="font-display text-2xl text-slate-900 leading-tight">どこで遊ぶ？</h1>
           </div>
-          <div className="flex items-center gap-2">
-            {location ? (
-              <label className="inline-flex items-center gap-1 h-8 pl-2.5 pr-1 rounded-full border border-gray-200 text-xs text-gray-700">
-                <MapPin size={14} className="text-blue-600" />
-                現在地から
-                <select
-                  value={radiusKey}
-                  onChange={(e) => setRadiusKey(e.target.value as RadiusKey)}
-                  aria-label="現在地からの距離"
-                  className="bg-transparent font-bold text-gray-900 focus:outline-none"
-                >
-                  {RADIUS_OPTIONS.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.km === null ? r.label : `${r.label}以内`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              !showLocationPrompt &&
-              locationStatus !== 'unsupported' && (
-                <button
-                  type="button"
-                  onClick={requestLocation}
-                  className="inline-flex items-center gap-1 h-8 px-3 rounded-full border border-gray-200 text-xs text-gray-700"
-                >
-                  <LocateFixed size={14} className="text-blue-600" />
-                  現在地を使う
-                </button>
-              )
-            )}
+          <div className="flex items-center gap-2 min-w-0">
+            {/* どこのイベントを見るか（押すとエリアを選ぶシート） */}
+            <button
+              type="button"
+              onClick={() => setAreaSheetOpen(true)}
+              aria-label={`エリア：${areaLabel(area)}。変更する`}
+              className={`min-w-0 inline-flex items-center gap-1 h-8 pl-2.5 pr-2 rounded-full text-xs font-bold ${
+                area ? 'border border-gray-200 text-gray-900 bg-white' : 'bg-blue-600 text-white'
+              }`}
+            >
+              {isNear ? <LocateFixed size={14} className="flex-shrink-0 text-blue-600" /> : <MapPin size={14} className={`flex-shrink-0 ${area ? 'text-blue-600' : ''}`} />}
+              <span className="truncate max-w-[9rem]">{areaLabel(area)}</span>
+              <ChevronDown size={14} className="flex-shrink-0 opacity-60" />
+            </button>
             <AuthStatus />
           </div>
         </div>
@@ -406,7 +438,7 @@ export default function HomePage() {
           <DateStrip
             selected={day}
             onSelect={setDay}
-            counts={isRadiusLimited && targetShopIds.length === 0 ? NO_COUNTS : dayCounts}
+            counts={!area || noTargetShops ? NO_COUNTS : dayCounts}
           />
         </div>
 
@@ -436,36 +468,42 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
-        {showLocationPrompt && (
-          <div className="surface p-3 flex items-center gap-3">
-            <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-              <LocateFixed size={18} />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-slate-900">近くのイベントを見る</div>
-              <div className="text-[11px] text-slate-500">位置は距離の計算だけに使います</div>
+        {showAreaPrompt && (
+          <div className="surface p-4 flex flex-col gap-3">
+            <div className="flex items-start gap-3">
+              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <MapPin size={20} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-slate-900">どこのイベントを見ますか？</div>
+                <div className="text-xs text-slate-500">
+                  {nearUnavailable ? '現在地を使えませんでした。エリアを選んでください' : 'エリアを決めると、行ける範囲のイベントだけが並びます'}
+                </div>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={requestLocation}
-              disabled={locationStatus === 'requesting'}
-              className="h-9 px-3 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-60 flex-shrink-0"
-            >
-              {locationStatus === 'requesting' ? '取得中…' : '現在地を使う'}
-            </button>
-            <button
-              type="button"
-              onClick={skipLocation}
-              aria-label="使わずに全国のイベントを見る"
-              className="p-1 -mr-1 text-slate-400 hover:text-slate-600 flex-shrink-0"
-            >
-              <X size={18} />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => requestLocation(true)}
+                disabled={locationStatus === 'requesting' || locationStatus === 'unsupported'}
+                className="h-10 rounded-xl border border-gray-200 text-sm font-bold text-gray-800 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <LocateFixed size={16} className="text-blue-600" />
+                {locationStatus === 'requesting' ? '取得中…' : '現在地の周辺'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAreaSheetOpen(true)}
+                className="h-10 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 hover:bg-blue-700"
+              >
+                <MapPin size={16} />
+                都道府県を選ぶ
+              </button>
+            </div>
+            <button type="button" onClick={() => setArea({ kind: 'all' })} className="self-center text-xs text-slate-500 underline underline-offset-2">
+              全国のイベントを見る
             </button>
           </div>
-        )}
-
-        {locationStatus === 'denied' && (
-          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">位置情報を使えないため、全国のイベントを表示しています</p>
         )}
 
         {formatFromProfile && selectedFormat && (
@@ -487,7 +525,7 @@ export default function HomePage() {
 
         <EventNotice />
 
-        {loading ? (
+        {showAreaPrompt ? null : loading || !areaReady ? (
           <SkeletonList kind="event" />
         ) : events.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
@@ -497,11 +535,14 @@ export default function HomePage() {
                 7日間で探す
               </button>
             )}
-            {location && radiusKey !== 'all' && (
-              <button type="button" onClick={() => setRadiusKey('all')} className="text-blue-600 font-medium">
-                距離の制限を外す
+            {area?.kind === 'near' && area.km < 10 && (
+              <button type="button" onClick={() => setArea({ kind: 'near', km: 10 })} className="text-blue-600 font-medium">
+                10km以内に広げる
               </button>
             )}
+            <button type="button" onClick={() => setAreaSheetOpen(true)} className="text-blue-600 font-medium">
+              エリアを変える
+            </button>
           </div>
         ) : (
           <>
@@ -562,6 +603,20 @@ export default function HomePage() {
           </span>
         </Link>
       </div>
+
+      <EventAreaSheet
+        open={areaSheetOpen}
+        area={area}
+        shopCounts={prefectureShopCounts}
+        hasLocation={location !== null}
+        locating={locationStatus === 'requesting'}
+        onClose={() => setAreaSheetOpen(false)}
+        onApply={(next) => {
+          setArea(next)
+          setAreaSheetOpen(false)
+        }}
+        onUseLocation={() => requestLocation(true)}
+      />
     </div>
   )
 }
