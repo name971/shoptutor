@@ -8,17 +8,20 @@ import { ExternalLink } from 'lucide-react'
 import type { OwnedShop } from '@/lib/owner-auth'
 import BackButton from '@/components/ui/BackButton'
 import Chip from '@/components/ui/Chip'
+import ChipRow from '@/components/ui/ChipRow'
 import { SkeletonBlock } from '@/components/ui/Skeleton'
 import OwnerShopForm from '@/components/owner/OwnerShopForm'
 import OwnerCoverUpload from '@/components/owner/OwnerCoverUpload'
 
 const OwnerOverview = dynamic(() => import('@/components/owner/OwnerOverview'))
 const OwnerAnalytics = dynamic(() => import('@/components/owner/OwnerAnalytics'))
+const OwnerCompare = dynamic(() => import('@/components/owner/OwnerCompare'))
 
 const TABS = [
   { key: 'overview', label: '概要' },
-  { key: 'info', label: '店舗情報' },
+  { key: 'compare', label: '地域比較' },
   { key: 'analytics', label: '訪問者分析' },
+  { key: 'info', label: '店舗情報' },
 ] as const
 type Tab = (typeof TABS)[number]['key']
 
@@ -87,13 +90,13 @@ export default function OwnerPage() {
             <ExternalLink size={13} />
           </Link>
         </div>
-        <div className="max-w-lg mx-auto px-4 py-2 flex gap-2">
+        <ChipRow className="max-w-lg mx-auto py-2">
           {TABS.map((t) => (
             <Chip key={t.key} selected={tab === t.key} onClick={() => changeTab(t.key)}>
               {t.label}
             </Chip>
           ))}
-        </div>
+        </ChipRow>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
@@ -105,6 +108,7 @@ export default function OwnerPage() {
           </>
         )}
         {tab === 'analytics' && <OwnerAnalytics />}
+        {tab === 'compare' && <OwnerCompare />}
       </div>
     </div>
   )

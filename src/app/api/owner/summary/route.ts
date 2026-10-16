@@ -20,7 +20,7 @@ export async function GET() {
   const [stats, favorites, reviews, events, lastScrape] = await Promise.all([
     admin
       .from('shop_view_stats')
-      .select('view_date, anon_views, member_fav_views, member_nonfav_views')
+      .select('view_date, view_hour, anon_views, member_fav_views, member_nonfav_views')
       .eq('shop_id', shopId)
       .gte('view_date', from),
     admin.from('shop_favorites').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId),
@@ -59,12 +59,19 @@ export async function GET() {
     return { date, views: byDate.get(date) ?? 0 }
   })
   const currentViews = daily.reduce((sum, d) => sum + d.views, 0)
+  // 時間帯ごとの閲覧数（直近30日の合計。JSTの時）
+  const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, views: 0 }))
+  for (const r of stats.data ?? []) {
+    if (r.view_date >= currentFrom && r.view_hour >= 0 && r.view_hour < 24) {
+      hourly[r.view_hour].views += r.anon_views + r.member_fav_views + r.member_nonfav_views
+    }
+  }
   let previousViews = 0
   for (const [date, n] of byDate) if (date < currentFrom) previousViews += n
 
   return NextResponse.json({
     days: DAYS,
-    views: { current: currentViews, previous: previousViews, daily },
+    views: { current: currentViews, previous: previousViews, daily, hourly },
     favoriteCount: favorites.count ?? 0,
     reviews: reviews.data ?? [],
     events: events.data ?? [],

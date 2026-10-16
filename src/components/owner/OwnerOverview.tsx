@@ -10,6 +10,7 @@ import { groupSameShopAndTime } from '@/lib/groupEvents'
 import { formatDayHeading, isEventPast, isStartingSoon } from '@/lib/eventTime'
 import OwnerReviewSummary from './OwnerReviewSummary'
 import ViewsTrendChart from './ViewsTrendChart'
+import HourlyViewsChart from './HourlyViewsChart'
 
 type OwnerReview = {
   id: string
@@ -29,7 +30,7 @@ type OwnerEvent = { id: string; shop_id: string; title: string; format: string; 
 
 type Summary = {
   days: number
-  views: { current: number; previous: number; daily: { date: string; views: number }[] }
+  views: { current: number; previous: number; daily: { date: string; views: number }[]; hourly: { hour: number; views: number }[] }
   favoriteCount: number
   reviews: OwnerReview[]
   events: OwnerEvent[]
@@ -109,6 +110,15 @@ export default function OwnerOverview({ shop }: { shop: OwnedShop }) {
           <span className="text-xs text-slate-500">直近{data.days}日</span>
         </div>
         <ViewsTrendChart daily={data.views.daily} />
+      </section>
+
+      {/* 時間帯ごとの閲覧数 */}
+      <section className="surface p-4 flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-bold text-slate-900">時間帯ごとの閲覧数</h2>
+          <span className="text-xs text-slate-500">直近{data.days}日の合計</span>
+        </div>
+        <HourlyViewsChart hourly={data.views.hourly} />
       </section>
 
       <OwnerReviewSummary shop={shop} />
