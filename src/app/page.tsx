@@ -14,8 +14,10 @@ import {
 } from '@/lib/eventTime'
 import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
 import EventRow from '@/components/event/EventRow'
+import ReminderList from '@/components/event/ReminderList'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { groupByDate } from '@/lib/groupByDate'
+import { groupSameShopAndTime } from '@/lib/groupEvents'
 import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
@@ -478,6 +480,8 @@ export default function HomePage() {
           </button>
         )}
 
+        <ReminderList />
+
         <EventNotice />
 
         {loading ? (
@@ -501,7 +505,8 @@ export default function HomePage() {
             {groups.map((group) => (
               <section key={group.date} className="flex flex-col gap-2">
                 <h2 className="text-sm font-bold text-slate-900 pt-1">{formatDayHeading(group.date)}</h2>
-                {group.items.map((event) => {
+                {groupSameShopAndTime(group.items).map((bundle) => {
+                  const event = bundle[0]
                   const distance = distanceById.get(event.shop_id)
                   return (
                     <EventRow
@@ -509,9 +514,19 @@ export default function HomePage() {
                       href={`/shops/${event.shop_id}`}
                       startTime={event.start_time}
                       shopName={event.shops?.name}
-                      title={event.title}
-                      format={event.format}
                       meta={distance !== undefined ? `${distance.toFixed(1)}km` : event.shops?.prefecture}
+                      items={bundle.map((e) => ({
+                        title: e.title,
+                        format: e.format,
+                        reminder: {
+                          shopId: e.shop_id,
+                          shopName: e.shops?.name ?? '',
+                          title: e.title,
+                          format: e.format,
+                          heldAt: e.held_at,
+                          startTime: e.start_time,
+                        },
+                      }))}
                     />
                   )
                 })}

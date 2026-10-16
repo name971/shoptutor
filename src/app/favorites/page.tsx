@@ -12,6 +12,7 @@ import EventRow from '@/components/event/EventRow'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
 import { groupByDate } from '@/lib/groupByDate'
+import { groupSameShopAndTime } from '@/lib/groupEvents'
 import { Star } from 'lucide-react'
 import Chip from '@/components/ui/Chip'
 
@@ -201,14 +202,24 @@ export default function FavoritesPage() {
                   {groupByDate(visibleEvents).map((group) => (
                     <section key={group.date} className="flex flex-col gap-2">
                       <h2 className="text-sm font-bold text-slate-900">{formatDayHeading(group.date)}</h2>
-                      {group.items.map((event) => (
+                      {groupSameShopAndTime(group.items).map((bundle) => (
                         <EventRow
-                          key={event.id}
-                          href={`/shops/${event.shop_id}`}
-                          startTime={event.start_time}
-                          shopName={event.shops?.name}
-                          title={event.title}
-                          format={event.format}
+                          key={bundle[0].id}
+                          href={`/shops/${bundle[0].shop_id}`}
+                          startTime={bundle[0].start_time}
+                          shopName={bundle[0].shops?.name}
+                          items={bundle.map((e) => ({
+                            title: e.title,
+                            format: e.format,
+                            reminder: {
+                              shopId: e.shop_id,
+                              shopName: e.shops?.name ?? '',
+                              title: e.title,
+                              format: e.format,
+                              heldAt: e.held_at,
+                              startTime: e.start_time,
+                            },
+                          }))}
                         />
                       ))}
                     </section>

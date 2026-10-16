@@ -9,6 +9,7 @@ import CoverPhotoGrid from '@/components/shop/CoverPhotoGrid'
 import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
 import DetailHeaderTitle from '@/components/shop/DetailHeaderTitle'
+import ShareButton from '@/components/shop/ShareButton'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
@@ -155,6 +156,10 @@ export default async function ShopDetailPage({ params }: Props) {
         <div className="max-w-lg mx-auto px-4 h-12 flex items-center gap-2">
           <BackButton />
           <DetailHeaderTitle shopName={shop.name} targetId="shop-name" />
+          <ShareButton
+            title={`${shop.name}｜ShopTutor`}
+            text={`${shop.name}（${shop.prefecture ?? ''}）のMTGイベントと口コミ`}
+          />
         </div>
         <nav className="max-w-lg mx-auto px-2 flex" aria-label="ページ内の移動">
           {sectionLinks.map((l) => (
@@ -232,6 +237,8 @@ export default async function ShopDetailPage({ params }: Props) {
             formatCounts={formatCounts}
             events={events ?? []}
             weeklyEventCount={shop.weekly_event_count}
+            shopId={shop.id}
+            shopName={shop.name}
           />
         </section>
 
