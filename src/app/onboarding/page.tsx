@@ -86,8 +86,8 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background px-4 py-10 flex flex-col items-center">
       <div className="w-full max-w-md flex flex-col gap-6">
         <div className="text-center flex flex-col items-center gap-2">
-          <span className="text-[11px] font-extrabold text-blue-600 tracking-wider uppercase">ShopTutor へようこそ</span>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">よく遊ぶフォーマットは？</h1>
+          <span className="font-display text-sm text-blue-600">ShopTutor へようこそ</span>
+          <h1 className="font-display text-2xl text-slate-900">よく遊ぶフォーマットは？</h1>
           <p className="text-sm text-slate-500 leading-relaxed">
             イベントやレビューを、あなたに合わせて表示します。
             <br />

@@ -293,7 +293,7 @@ export default function MyPage() {
     <div className="min-h-screen bg-background pb-24">
       <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center">
-          <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight">マイページ</h1>
+          <h1 className="font-display text-2xl text-slate-900">マイページ</h1>
         </div>
       </div>
 

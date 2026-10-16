@@ -8,7 +8,7 @@ export default function NotFound() {
         <SearchX size={28} />
       </span>
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">ページが見つかりません</h1>
+        <h1 className="font-display text-2xl text-slate-900">ページが見つかりません</h1>
         <p className="mt-2 text-sm text-slate-500">
           お探しのページは移動または削除された可能性があります。
         </p>

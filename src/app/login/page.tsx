@@ -43,8 +43,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white px-6 pt-16 pb-24">
         <div className="max-w-sm mx-auto flex flex-col gap-3">
-          <span className="text-[11px] font-extrabold tracking-wider uppercase text-white/80">ShopTutor</span>
-          <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
+          <span className="font-display text-lg text-white/90">ShopTutor</span>
+          <h1 className="font-display text-3xl leading-snug">
             近くのMTG公認店と
             <br />
             イベントが見つかる

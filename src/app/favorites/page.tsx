@@ -146,7 +146,7 @@ export default function FavoritesPage() {
     <div className="min-h-screen bg-background pb-24">
       <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3">
-        <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight mb-3">お気に入り</h1>
+        <h1 className="font-display text-2xl text-slate-900 mb-3">お気に入り</h1>
         <div className="flex gap-2">
           {TABS.map((t) => (
             <Chip key={t.key} selected={tab === t.key} onClick={() => setTab(t.key)}>

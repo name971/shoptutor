@@ -335,8 +335,8 @@ export default function HomePage() {
       <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 pt-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[11px] font-extrabold text-blue-600 tracking-wider uppercase">ShopTutor</div>
-            <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight leading-tight">どこで遊ぶ？</h1>
+            <div className="font-display text-sm text-blue-600 leading-none mb-1">ShopTutor</div>
+            <h1 className="font-display text-2xl text-slate-900 leading-tight">どこで遊ぶ？</h1>
           </div>
           <div className="flex items-center gap-2">
             {location ? (
