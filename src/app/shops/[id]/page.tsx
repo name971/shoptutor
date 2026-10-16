@@ -10,6 +10,7 @@ import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
 import DetailHeaderTitle from '@/components/shop/DetailHeaderTitle'
 import ShareButton from '@/components/shop/ShareButton'
+import { OwnerManageLink } from '@/components/owner/OwnerEntry'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
@@ -31,7 +32,7 @@ const getShop = cache(async (id: string) => {
   const { data } = await createClient()
     .from('shops')
     .select(
-      'id, official_id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, other_count, review_count, avg_stock, avg_price, avg_playspace, avg_staff, avg_access, avg_total, weekly_event_count, cover_photo_urls, business_hours, parking_available, parking_note'
+      'id, official_id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, first_listed_at, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, other_count, review_count, avg_stock, avg_price, avg_playspace, avg_staff, avg_access, avg_total, weekly_event_count, cover_photo_urls, business_hours, parking_available, parking_note, is_premium'
     )
     .eq('id', id)
     .maybeSingle()
@@ -230,6 +231,9 @@ export default async function ShopDetailPage({ params }: Props) {
             </a>
           </div>
         </div>
+
+        {/* その店のオーナーにだけ出る管理画面への入口（プレミアム店舗のみ確認する） */}
+        {shop.is_premium && <OwnerManageLink shopId={shop.id} />}
 
         {/* 公式イベント情報 */}
         <section id="events" className="scroll-mt-28">

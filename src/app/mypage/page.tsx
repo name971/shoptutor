@@ -1,5 +1,6 @@
 'use client'
 
+import { OwnerEntryCard } from '@/components/owner/OwnerEntry'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -513,6 +514,9 @@ export default function MyPage() {
               </>
             )}
           </section>
+
+          {/* 店舗オーナーだけに出る入口 */}
+          <OwnerEntryCard />
 
           {/* 設定・その他 */}
           <section className="flex flex-col gap-3">
