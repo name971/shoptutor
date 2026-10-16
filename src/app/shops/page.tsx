@@ -21,7 +21,7 @@ import ChipRow from '@/components/ui/ChipRow'
 import BottomSheet from '@/components/ui/BottomSheet'
 import { Search, SlidersHorizontal, X, ChevronDown, ChevronLeft, List, Map as MapIcon, Info } from 'lucide-react'
 import type { MapBounds } from '@/components/map/ShopMap'
-import { REGIONS, cityOf, COUNT_STEPS } from '@/lib/area'
+import { REGIONS, cityOf, COUNT_STEPS, LAST_PREFECTURE_KEY } from '@/lib/area'
 import AreaPicker from '@/components/shop/AreaPicker'
 
 const ShopMap = dynamic(() => import('@/components/map/ShopMap'), {
@@ -38,8 +38,6 @@ type View = 'list' | 'map'
 const PAGE_SIZE = 20
 
 const FILTERS_STORAGE_KEY = 'shoptutor_shops_filters_v2'
-// 前回見た都道府県（次に来たときエリア選択の先頭に出す）。端末に残す
-const LAST_PREFECTURE_KEY = 'shoptutor_last_prefecture'
 const SHOP_LIST_CACHE_KEY = 'shops:list'
 const FAVORITE_COUNTS_CACHE_KEY = 'shops:favorite-counts'
 

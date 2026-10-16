@@ -35,3 +35,6 @@ export const EMPTY_FILL = '#eef1f5'
 export function shortPrefectureName(prefecture: string) {
   return prefecture === '北海道' ? prefecture : prefecture.replace(/[都府県]$/, '')
 }
+
+// 前回見た都道府県（店舗タブで選んだもの）。イベントタブの最初のエリアにも使う。端末に残す
+export const LAST_PREFECTURE_KEY = 'shoptutor_last_prefecture'

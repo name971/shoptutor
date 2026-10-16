@@ -15,6 +15,8 @@ type Props = {
   region: string | null
   onRegionChange: (region: string | null) => void
   onSelect: (prefecture: string) => void
+  // 選択中の都道府県（複数選べる場面で、縁取りで示す）
+  selected?: Set<string>
 }
 
 // 店舗数の段階（色だけに頼らないよう、地方を拡大すると数字も出す）
@@ -71,7 +73,7 @@ function fitSquare(b: Box, padRatio = 0.08): Box {
 }
 
 // 都道府県の塗り分け地図。全国→地方→都道府県の順にタップで選ぶ
-export default function JapanMap({ regions, counts, region, onRegionChange, onSelect }: Props) {
+export default function JapanMap({ regions, counts, region, onRegionChange, onSelect, selected }: Props) {
   const regionOf = useMemo(() => {
     const m = new Map<string, string>()
     for (const r of regions) for (const p of r.prefectures) m.set(p, r.name)
@@ -191,8 +193,12 @@ export default function JapanMap({ regions, counts, region, onRegionChange, onSe
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {PREFECTURE_SHAPES.map((s) => {
+        {/* 選択中の県は縁取りが隣の県に隠れないよう最後に描く */}
+        {[...PREFECTURE_SHAPES]
+          .sort((a, b) => Number(selected?.has(a.name) ?? false) - Number(selected?.has(b.name) ?? false))
+          .map((s) => {
           const n = counts.get(s.name) ?? 0
+          const isSelected = selected?.has(s.name) ?? false
           const step = stepOf(n)
           const inRegion = !zoomed || regionOf.get(s.name) === region
           return (
@@ -201,10 +207,11 @@ export default function JapanMap({ regions, counts, region, onRegionChange, onSe
               d={s.d}
               fill={step?.fill ?? EMPTY_FILL}
               fillOpacity={inRegion ? 1 : 0.25}
-              stroke="#ffffff"
-              strokeWidth={1}
+              stroke={isSelected ? '#f97316' : '#ffffff'}
+              strokeWidth={isSelected ? 3 : 1}
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
+              aria-pressed={selected ? isSelected : undefined}
               className="cursor-pointer outline-none hover:brightness-110 focus-visible:brightness-90"
               role="button"
               tabIndex={inRegion ? 0 : -1}
