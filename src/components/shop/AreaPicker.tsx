@@ -1,4 +1,8 @@
-import { ChevronRight, History } from 'lucide-react'
+'use client'
+
+import { useState } from 'react'
+import { ChevronLeft, ChevronRight, History } from 'lucide-react'
+import JapanMap from './JapanMap'
 
 type Props = {
   regions: { name: string; prefectures: string[] }[]
@@ -18,6 +22,10 @@ function shortName(prefecture: string) {
 
 // 店舗タブの入口。MTGの店舗は主要な街に集まっているので、地図を動かすより先に都道府県を選んでもらう
 export default function AreaPicker({ regions, counts, total, loading, lastPrefecture, onSelect, onBrowseAll }: Props) {
+  // 地図で拡大中の地方。下の一覧もその地方だけにする
+  const [region, setRegion] = useState<string | null>(null)
+  const shownRegions = region ? regions.filter((r) => r.name === region) : regions
+
   return (
     <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-5">
       <div className="flex flex-col gap-2">
@@ -46,7 +54,26 @@ export default function AreaPicker({ regions, counts, total, loading, lastPrefec
         </div>
       </div>
 
-      {regions.map((region) => {
+      <div className="surface p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between h-8">
+          {region ? (
+            <button
+              type="button"
+              onClick={() => setRegion(null)}
+              className="-ml-1 h-8 pl-0.5 pr-2 inline-flex items-center gap-0.5 rounded-lg text-sm font-bold text-gray-900 hover:bg-gray-100"
+            >
+              <ChevronLeft size={18} />
+              全国
+            </button>
+          ) : (
+            <span className="text-sm font-bold text-gray-900">地図から選ぶ</span>
+          )}
+          <span className="text-xs text-gray-500">{region ? '都道府県をタップ' : '地方をタップして拡大'}</span>
+        </div>
+        <JapanMap regions={regions} counts={counts} region={region} onRegionChange={setRegion} onSelect={onSelect} />
+      </div>
+
+      {shownRegions.map((region) => {
         const regionTotal = region.prefectures.reduce((sum, p) => sum + (counts.get(p) ?? 0), 0)
         return (
           <section key={region.name} className="flex flex-col gap-2">
