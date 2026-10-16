@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Star, Trophy, Lock, MapPinOff } from 'lucide-react'
+import { Star, Trophy, Lock, MapPinOff, Sparkles } from 'lucide-react'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
 import { SkeletonBlock } from '@/components/ui/Skeleton'
 import { FORMAT_LABELS, FORMAT_HEX } from '@/types'
 
 type Metric = { mine: number | null; average: number | null; rank: number | null; of: number }
+type Basis = { kind: 'nearest' | 'near' | 'prefecture' | 'region'; radiusKm?: number; region?: string; fallback?: boolean }
 type Compare = {
-  scope: 'prefecture' | 'near'
+  scope: 'auto' | 'prefecture' | 'near'
   km: number
+  basis: Basis
   prefecture: string
   hasLocation: boolean
   shopCount: number
@@ -37,12 +39,13 @@ const COMPETITOR_LIMIT = 20
 
 // 同じ都道府県・周辺の店舗との比較。他店の閲覧数は出さず、地域の平均と自店の順位だけ
 export default function OwnerCompare() {
-  const [scopeKey, setScopeKey] = useState('prefecture')
+  const [scopeKey, setScopeKey] = useState('auto')
   const [data, setData] = useState<Compare | null>(null)
   const [error, setError] = useState(false)
   const [showAll, setShowAll] = useState(false)
 
   const scopes: Scope[] = [
+    { key: 'auto', label: '自動（おすすめ）', query: 'scope=auto' },
     { key: 'prefecture', label: data ? `${data.prefecture}内` : '都道府県内', query: 'scope=prefecture' },
     ...[3, 5, 10, 20].map((km) => ({ key: `near${km}`, label: `周辺${km}km`, query: `scope=near&km=${km}` })),
   ]
@@ -93,11 +96,12 @@ export default function OwnerCompare() {
         </p>
       ) : (
         <>
+          <BasisNote data={data} />
           <MetricsTable data={data} />
           <FormatComparison data={data} />
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-bold text-slate-900">
-              {scope.label}の店舗（{data.shopCount}店・週のイベントが多い順）
+              比べたお店（自店を含む{data.shopCount}店・週のイベントが多い順）
             </h2>
             <div className="surface divide-y divide-slate-100 overflow-hidden">
               {(showAll ? data.competitors : data.competitors.slice(0, COMPETITOR_LIMIT)).map((c, i) => (
@@ -118,7 +122,7 @@ export default function OwnerCompare() {
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
                       {c.city && <span>{c.city}</span>}
-                      {data.scope === 'near' && c.distance !== null && !c.is_me && <span className="tabular-nums">{c.distance.toFixed(1)}km</span>}
+                      {c.distance !== null && !c.is_me && <span className="tabular-nums">{c.distance.toFixed(1)}km</span>}
                       {c.main_format && <span>{FORMAT_LABELS[c.main_format] ?? 'その他'}中心</span>}
                     </div>
                   </div>
@@ -151,6 +155,36 @@ export default function OwnerCompare() {
           </p>
         </>
       )}
+    </div>
+  )
+}
+
+// どの範囲と比べたか（自動のときは、なぜその範囲になったかも）
+function BasisNote({ data }: { data: Compare }) {
+  const { basis } = data
+  const others = data.shopCount - 1
+  const text =
+    basis.kind === 'nearest'
+      ? `周辺${basis.radiusKm!.toFixed(1)}km以内の近いお店${others}店と比べています`
+      : basis.kind === 'near'
+        ? `周辺${basis.radiusKm}km以内のお店${others}店と比べています`
+        : basis.kind === 'prefecture'
+          ? `${data.prefecture}内のお店${others}店と比べています`
+          : `${basis.region ?? '同じ地方'}のお店${others}店と比べています`
+  return (
+    <div className="surface px-4 py-3 flex items-start gap-2">
+      {data.scope === 'auto' && <Sparkles size={16} className="mt-0.5 flex-shrink-0 text-blue-600" />}
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-bold text-slate-900">{text}</span>
+        {data.scope === 'auto' && (
+          <span className="text-xs text-slate-500">
+            {basis.fallback
+              ? '30km以内に比べられるお店が少ないため、範囲を広げています'
+              : '近い順に10店（1km以内のお店はすべて）、30kmまでの範囲で自動で選んでいます'}
+          </span>
+        )}
+        {others === 0 && <span className="text-xs text-slate-500">この範囲には他のお店がありません。範囲を広げてください</span>}
+      </div>
     </div>
   )
 }

@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { haversineDistanceKm } from '@/lib/geo'
-import { cityOf } from '@/lib/area'
+import { cityOf, REGIONS } from '@/lib/area'
 import { jstDateKey, addDaysToKey } from '@/lib/eventTime'
 import { FORMAT_COUNT_FIELDS } from '@/lib/shopFormat'
 
 const VIEW_DAYS = 30
 const NEAR_KM_OPTIONS = [3, 5, 10, 20]
+// 自動の範囲：近い順に10店（1km以内は全部入れる）、ただし30kmまで。
+// 30km以内に比べられる店が4店以下なら同じ都道府県、それも4店以下なら地方（東北・九州など）に広げる
+// （本番の店舗配置で、10店目までの距離は中央値約25km・都市部の上位1割は2.5km以内、30km以内に5店未満の店が約4分の1）
+const AUTO_TARGET = 10
+const AUTO_ALWAYS_KM = 1
+const AUTO_MAX_KM = 30
+const AUTO_MIN_OTHERS = 5
 const FORMAT_FIELDS = [...FORMAT_COUNT_FIELDS, { key: 'other', field: 'other_count' }] as const
 
 type ShopRow = {
@@ -30,7 +37,8 @@ export async function GET(request: Request) {
   if (!result) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
-  const scope = searchParams.get('scope') === 'near' ? 'near' : 'prefecture'
+  const scopeParam = searchParams.get('scope')
+  const scope = scopeParam === 'near' ? 'near' : scopeParam === 'prefecture' ? 'prefecture' : 'auto'
   const km = NEAR_KM_OPTIONS.includes(Number(searchParams.get('km'))) ? Number(searchParams.get('km')) : 5
 
   const admin = createAdminClient()
@@ -38,9 +46,7 @@ export async function GET(request: Request) {
   const { data: me } = await admin.from('shops').select(columns).eq('id', result.shop.id).single<ShopRow>()
   if (!me) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
-  let query = admin.from('shops').select(columns).eq('status', 'active')
-  if (scope === 'prefecture') query = query.eq('prefecture', me.prefecture)
-  const { data: rows, error } = await query.returns<ShopRow[]>()
+  const { data: rows, error } = await admin.from('shops').select(columns).eq('status', 'active').returns<ShopRow[]>()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const hasPoint = me.lat !== null && me.lng !== null
@@ -48,11 +54,35 @@ export async function GET(request: Request) {
     ...s,
     distance: hasPoint && s.lat !== null && s.lng !== null ? haversineDistanceKm(me.lat!, me.lng!, s.lat, s.lng) : null,
   }))
-  const area =
-    scope === 'near'
-      ? withDistance.filter((s) => s.id === me.id || (s.distance !== null && s.distance <= km))
-      : withDistance
-  if (!area.some((s) => s.id === me.id)) area.push({ ...me, distance: 0 })
+  const others = withDistance.filter((s) => s.id !== me.id)
+  const samePrefecture = others.filter((s) => s.prefecture === me.prefecture)
+  const myRegion = REGIONS.find((r) => r.prefectures.includes(me.prefecture))
+  const sameRegion = others.filter((s) => myRegion?.prefectures.includes(s.prefecture))
+
+  // 実際に比べた範囲（画面に「どこと比べたか」を出すため）
+  let basis: { kind: 'nearest' | 'near' | 'prefecture' | 'region'; radiusKm?: number; region?: string; fallback?: boolean }
+  let picked: typeof others
+  if (scope === 'near') {
+    picked = others.filter((s) => s.distance !== null && s.distance <= km)
+    basis = { kind: 'near', radiusKm: km }
+  } else if (scope === 'prefecture') {
+    picked = samePrefecture
+    basis = { kind: 'prefecture' }
+  } else {
+    const byDistance = others.filter((s) => s.distance !== null && s.distance <= AUTO_MAX_KM).sort((a, b) => a.distance! - b.distance!)
+    const nearest = byDistance.filter((s, idx) => idx < AUTO_TARGET || s.distance! <= AUTO_ALWAYS_KM)
+    if (hasPoint && nearest.length >= AUTO_MIN_OTHERS) {
+      picked = nearest
+      basis = { kind: 'nearest', radiusKm: Math.max(...nearest.map((s) => s.distance!)) }
+    } else if (samePrefecture.length >= AUTO_MIN_OTHERS) {
+      picked = samePrefecture
+      basis = { kind: 'prefecture', fallback: true }
+    } else {
+      picked = sameRegion
+      basis = { kind: 'region', region: myRegion?.name, fallback: true }
+    }
+  }
+  const area = [...picked, { ...me, distance: hasPoint ? 0 : null }]
   const ids = area.map((s) => s.id)
 
   // お気に入り数（件数だけ）と、直近30日の閲覧数
@@ -104,6 +134,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     scope,
     km,
+    basis,
     prefecture: me.prefecture,
     hasLocation: hasPoint,
     shopCount: area.length,
