@@ -152,7 +152,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - 写真圧縮：browser-image-compressionでWebP・最大1MB・最大幅1920px
 - イベント注意書き：⑤イベントタブと⑥-bお気に入りイベントのみ表示（初回のみ）
 - 都市部/郊外の距離切り替え：3km/5km/10km/制限なしでユーザーが手動選択
-- UI共通ルール：絞り込みチップは`components/ui/Chip.tsx`（選択中＝濃紺塗り＋白文字）に統一。カードは`surface`、上部固定ヘッダーは`app-header`（どちらも`globals.css`の`@utility`）。文字は11px未満を使わない。アイコンは絵文字ではなく`lucide-react`。主ボタンは青（blue-600）
+- UI共通ルール：絞り込みチップは`components/ui/Chip.tsx`（選択中＝濃紺塗り＋白文字）に統一。横に並べるときは`ChipRow`（はみ出すと端に◀▶ボタン、マウスホイールでも横スクロール）を使う。カードは`surface`、上部固定ヘッダーは`app-header`（どちらも`globals.css`の`@utility`）。文字は11px未満を使わない。アイコンは絵文字ではなく`lucide-react`。主ボタンは青（blue-600）
 - フォント：本文は`font-sans`（M PLUS 2）。ロゴ・ページの大見出しだけ`font-display`（Dela Gothic One、太さは1種類なのでbold指定しない。擬似太字は`font-synthesis-weight: none`で無効）。店名やユーザー名など長い固有名詞には`font-display`を使わない
 - ダークモード：未対応のためライト表示に固定（`globals.css`で`color-scheme: light`）
 - タブ構成（4タブ）：イベント（`/`）・店舗（`/shops`）・お気に入り・マイページ。ホームはイベント中心（レビューが少ない時期でも毎日内容が変わるため）。旧URLの`/events`→`/`、`/map`→`/shops?view=map`は`next.config.ts`でリダイレクト
