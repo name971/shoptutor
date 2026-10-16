@@ -12,9 +12,11 @@ export type EventRowItem = {
 }
 
 type Props = {
-  href: string
+  // 押したときの移動先（店舗詳細）。店舗詳細の中で使うときは省く
+  href?: string
   startTime: string | null
-  shopName: string | undefined
+  // 省くと店名の行を出さない（店舗詳細の中など、どの店かわかっている場面）
+  shopName?: string
   // 都道府県・距離など、店名の右に小さく出す補足
   meta?: React.ReactNode
   // 同じ店舗・同じ時刻のイベント。先頭を代表として出し、残りはその下に並べる（中身を見たい人が多いので畳まない）
@@ -49,6 +51,16 @@ function ShopLine({ shopName, meta }: { shopName: string | undefined; meta?: Rea
   )
 }
 
+function Body({ href, className, children }: { href?: string; className: string; children: React.ReactNode }) {
+  return href ? (
+    <Link href={href} className={`${className} hover:bg-slate-50 transition-colors`}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
+  )
+}
+
 // イベント一覧の1行（タイムライン）。左に開始時刻と時間軸の線、右のカードは
 // 1段目「何を（フォーマット＋イベント名）」、2段目「どこで（店名＋距離）」。ホームとお気に入りで共通
 export default function EventRow({ href, startTime, shopName, meta, items, soon = false }: Props) {
@@ -76,23 +88,25 @@ export default function EventRow({ href, startTime, shopName, meta, items, soon 
       <div className="flex-1 min-w-0 py-1">
         {others.length === 0 ? (
           <div className="surface overflow-hidden flex items-center pr-1">
-            <Link href={href} className="flex-1 min-w-0 px-3 py-2 flex flex-col gap-0.5 hover:bg-slate-50 transition-colors">
+            <Body href={href} className="flex-1 min-w-0 px-3 py-2 flex flex-col gap-0.5">
               <ItemTitle item={first} />
-              <ShopLine shopName={shopName} meta={meta} />
-            </Link>
+              {shopName !== undefined && <ShopLine shopName={shopName} meta={meta} />}
+            </Body>
             {first.reminder && <ReminderButton source={first.reminder} />}
           </div>
         ) : (
           // 同じ時間に複数ある店：店名を上に1回だけ出し、イベントを同じ重みで並べる
           <div className="surface overflow-hidden">
-            <Link href={href} className="block px-3 pt-2 pb-1 hover:bg-slate-50 transition-colors">
-              <ShopLine shopName={shopName} meta={meta} />
-            </Link>
+            {shopName !== undefined && (
+              <Body href={href} className="block px-3 pt-2 pb-1">
+                <ShopLine shopName={shopName} meta={meta} />
+              </Body>
+            )}
             {items.map((item, i) => (
               <div key={i} className={`flex items-center pr-1 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
-                <Link href={href} className="flex-1 min-w-0 px-3 py-2 hover:bg-slate-50 transition-colors">
+                <Body href={href} className="flex-1 min-w-0 px-3 py-2">
                   <ItemTitle item={item} />
-                </Link>
+                </Body>
                 {item.reminder && <ReminderButton source={item.reminder} />}
               </div>
             ))}
