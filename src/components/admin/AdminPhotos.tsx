@@ -26,26 +26,19 @@ export default function AdminPhotos() {
   const [usage, setUsage] = useState<StorageUsage | null>(null)
   const [usageLoading, setUsageLoading] = useState(true)
 
-  const load = async () => {
-    setLoading(true)
-    const res = await fetch('/api/admin/photos')
-    const data = await res.json()
-    setPhotos(data.photos ?? [])
-    setLoading(false)
-  }
-
-  const loadUsage = async () => {
-    setUsageLoading(true)
-    const res = await fetch('/api/admin/storage-usage')
-    if (res.ok) {
-      setUsage(await res.json())
-    }
-    setUsageLoading(false)
-  }
-
   useEffect(() => {
-    load()
-    loadUsage()
+    fetch('/api/admin/photos')
+      .then((res) => res.json())
+      .then((data) => {
+        setPhotos(data.photos ?? [])
+        setLoading(false)
+      })
+    fetch('/api/admin/storage-usage')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setUsage(data)
+        setUsageLoading(false)
+      })
   }, [])
 
   const handleDelete = async (photoId: string) => {
@@ -89,9 +82,10 @@ export default function AdminPhotos() {
         photos.map((photo) => (
           <div key={photo.id} className="bg-white rounded-xl border overflow-hidden">
             <div className="aspect-square">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
               <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
             </div>
-            <div className="p-1.5 text-[10px] text-gray-500">
+            <div className="p-1.5 text-[11px] text-gray-500">
               <div className="truncate">{photo.shops?.name}</div>
               <div className="truncate text-gray-400">{photo.profiles?.name ?? '匿名'}</div>
               <button

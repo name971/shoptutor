@@ -8,7 +8,7 @@
 ## 技術スタック
 - フロントエンド：Next.js 16 (App Router) + TypeScript + Tailwind CSS
 - DB・認証：Supabase (PostgreSQL)
-- 地図：Leaflet + OpenStreetMap + leaflet.markercluster
+- 地図：MapLibre GL + OpenFreeMap（ベクタータイル・無料・登録不要・利用回数の上限なし）
 - ホスティング：Vercel（予定）
 - スクレイピング：Python (BeautifulSoup) + GitHub Actions（1日1回 12:00 JST、スクレイピングラグ吸収のため8日分取得。ただし週イベント数・フォーマット別集計は直近7日間のみで計算）
 
@@ -26,7 +26,7 @@ page.tsx            # 店舗タブ（リスト／地図の切り替え・絞り�
 page.tsx          # 店舗詳細ページ ✅
 components/
 map/
-ShopMap.tsx         # Leafletマップ本体 ✅
+ShopMap.tsx         # MapLibre GLマップ本体（クラスタ・HTMLピン） ✅
 ShopMarker.ts       # カスタムピン（主力フォーマット色＋週イベント数）・クラスタアイコン ✅
 shop/
 ShopCard.tsx        # 店舗カード（リスト表示用） ✅
@@ -40,6 +40,8 @@ types/
 index.ts              # 型定義・フォーマット色定義 ✅
 scripts/
 import.py              # shops.json・events_weekly.jsonをSupabaseにインポート ✅
+supabase/
+migrations/            # DB変更のSQL（Supabase MCPで適用済みのものを記録）
 
 ## DBスキーマ（Supabase）
 主要テーブル：
@@ -51,6 +53,7 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 - `shop_photos` - 店舗写真（Supabase Storage）
 - `photo_likes` - 写真いいね
 - `shop_favorites` - お気に入り店舗
+- `shop_next_events`（ビュー）- 店舗ごとの次のイベント（JSTで未開始の最も早いもの。security_invoker）
 
 ## フォーマット色分け
 - commander: Purple
@@ -71,7 +74,7 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 
 ## 実装済み ✅
 - Supabaseスキーマ作成・データインポート（563店舗・1898イベント）
-- マップ画面（Leaflet・クラスタリング・色分けピン・フォーマットフィルター）
+- マップ画面（MapLibre GL・クラスタリング・色分けピン・フォーマットフィルター）
 - 店舗詳細ページ（基本情報・イベント情報・レビュー概要・レビュー一覧）
 - 共通UIコンポーネント（FormatBadge・StarRating・ShopBadges・ShopCard）
 
@@ -121,7 +124,7 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 
 ### PWA・軽量化
 - [x] PWA対応（`next-pwa`はTurbopack非対応のため削除し、Next.js標準の`manifest.ts`+`apple-icon.tsx`で「ホーム画面に追加」に対応。オフライン/Service Workerは対象外）
-- [x] 日本語フォント（現状維持で決定：ユーザー投稿・スクレイピングデータで文字集合が確定できないためサブセット化は非現実的。OS標準フォントのフォールバックのまま、追加Webフォントは導入しない）
+- [x] 日本語フォント（2026-10に方針変更：本文・UIはM PLUS 2、ロゴ・大見出しはDela Gothic One。`next/font/google`で自己ホストし`preload: false`。Google Fontsの日本語は文字ごとに約120分割され、画面に出る文字を含む分だけが読み込まれるため、文字集合が決まらなくても実用的な容量に収まる）
 - [x] WebP変換（browser-image-compression）
 
 ### プレミアム店舗オーナー機能
@@ -140,7 +143,7 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 
 ## 設計上の重要な決定事項
 - スクレイピング：WotCの利用規約グレーゾーン。問題があればイベント自動取得を停止し手動に切り替え
-- 地図：Leaflet + OpenStreetMap（Google Maps APIは使わない・完全無料）
+- 地図：MapLibre GL + OpenFreeMap（`https://tiles.openfreemap.org/styles/liberty`。Google Maps APIは使わない・完全無料）。地名は日本語表記（name:ja）を優先。`NEXT_PUBLIC_MAP_STYLE_URL`でスタイルを差し替え可能
 - 認証：Google/X外部認証のみ（メール登録なし）
 - レビュー：1店舗1レビュー・5軸評価・星のみ投稿可（テキストは30字以上必須）
 - NEWバッジ：first_listed_atから30日以内
@@ -149,11 +152,20 @@ import.py              # shops.json・events_weekly.jsonをSupabaseにインポ�
 - 写真圧縮：browser-image-compressionでWebP・最大1MB・最大幅1920px
 - イベント注意書き：⑤イベントタブと⑥-bお気に入りイベントのみ表示（初回のみ）
 - 都市部/郊外の距離切り替え：3km/5km/10km/制限なしでユーザーが手動選択
-- UI共通ルール：絞り込みチップは`components/ui/Chip.tsx`（選択中＝青塗り＋白文字）に統一。文字は11px未満を使わない。アイコンは絵文字ではなく`lucide-react`
+- UI共通ルール：絞り込みチップは`components/ui/Chip.tsx`（選択中＝濃紺塗り＋白文字）に統一。カードは`surface`、上部固定ヘッダーは`app-header`（どちらも`globals.css`の`@utility`）。文字は11px未満を使わない。アイコンは絵文字ではなく`lucide-react`。主ボタンは青（blue-600）
+- フォント：本文は`font-sans`（M PLUS 2）。ロゴ・ページの大見出しだけ`font-display`（Dela Gothic One、太さは1種類なのでbold指定しない。擬似太字は`font-synthesis-weight: none`で無効）。店名やユーザー名など長い固有名詞には`font-display`を使わない
 - ダークモード：未対応のためライト表示に固定（`globals.css`で`color-scheme: light`）
 - タブ構成（4タブ）：イベント（`/`）・店舗（`/shops`）・お気に入り・マイページ。ホームはイベント中心（レビューが少ない時期でも毎日内容が変わるため）。旧URLの`/events`→`/`、`/map`→`/shops?view=map`は`next.config.ts`でリダイレクト
 - ホーム（イベント）：開始時刻順・日付ごとの見出し。Supabaseの取得上限（既定1000件）を超えないよう50件ずつページ取得し、件数は`count: 'exact'`で取得。全国表示は店舗IDを並べずに`shops!inner(status)`で絞る（URL長対策）
 - 店舗タブの絞り込み：上部はフォーマット1段＋「絞り込み」ボタンのみ。エリア・WPN・マイスター・並び順はボトムシート（`components/ui/BottomSheet.tsx`）。地図表示でエリアを選ぶと、そのエリアに地図を合わせる
-- 地図の表示：ピンの色＝その店で一番多いフォーマット、数字＝週のイベント数（フォーマット絞り込み中はそのフォーマットの色・回数、クラスタも同色）。タイルは彩度を落としてピンを目立たせる。店名ラベルはズーム13以上のみ。ピンをタップすると下に店舗カードを表示（ポップアップは使わない）。スマホは「この範囲の店舗 N件」から下に引き出すリスト、PCは右側に一覧
+- 地図の表示：ピンの色＝その店で一番多いフォーマット、数字＝週のイベント数（フォーマット絞り込み中はそのフォーマットの色・回数、クラスタも同色）。ピン・クラスタはHTMLマーカーで描き、GeoJSONソースのクラスタ機能でまとめる（ズーム13より拡大で全ピン）。店名ラベルはズーム12以上のみ。ピンをタップすると下に店舗カードを表示（ポップアップは使わない）。スマホは「この範囲の店舗 N件」から下に引き出すリスト、PCは右側に一覧
+- マイページ：プロフィールカード（アバター・フォーマット・レビュー/写真/いいね数）、編集はボトムシート、投稿レビュー・写真、設定リスト（規約・ログアウト・アカウント削除）
+- 店舗カードの「次回」：ビュー`shop_next_events`を一覧取得して店舗IDで引く（`lib/nextEvents.ts`）。取得失敗時は表示しないだけで一覧は出す
+- 確認ダイアログ：`window.confirm`は使わず`useConfirm()`（`components/ui/ConfirmDialog.tsx`）。アカウント削除は「削除」と入力して実行
+- 読み込み中：「読み込み中...」の文字ではなく`components/ui/Skeleton.tsx`の仮表示。店舗詳細は`loading.tsx`
+- 店舗詳細のメタ情報：`generateMetadata`で店名入りのタイトル・説明文・OGP（カバー写真があれば画像に使う）
+- lint：エラー・警告0を維持。ストレージ復元のための effect 内 setState と、圧縮済み投稿写真の`<img>`は理由付きの eslint-disable で許容
+- 情報量：カードは3段まで（店舗カード＝店名＋評価／次回イベント／場所・週回数・バッジ、イベント行＝店名＋距離／フォーマット＋イベント名）。説明文は1行に収める
+- グラフ（`components/charts/`）：店舗詳細のイベント欄に「遊ばれているフォーマット（100%積み上げ横棒）」と「日別の開催数（今後7日・単色の縦棒）」。どちらも押すと一覧を絞り込む。フォーマット色はCVD検証で一部の組（コマンダー/スタンダード、モダン/パイオニア）が見分けにくいため、色だけに頼らず名前入りチップを凡例として棒の直下に置く
 - 店舗詳細：下部ナビの代わりにアクションバー（お気に入り・レビュー・経路）を固定表示。経路はGoogleマップへリンク
 - ホーム（イベント）の位置情報：いきなり許可ダイアログを出さず、説明カードの「現在地を使う」で取得（一度許可したら次回から自動）。ログイン中で保存済み条件がなければメインフォーマットで初期絞り込み

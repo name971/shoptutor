@@ -11,11 +11,45 @@ import BackButton from '@/components/ui/BackButton'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MapPin, ExternalLink, Navigation, PenLine, Star, Clock, SquareParking } from 'lucide-react'
 
 type Props = {
   params: Promise<{ id: string }>
+}
+
+// 取得結果の型（投稿者は多対1の結合なのでオブジェクト、いいね数は集計結果の配列で返る）
+type ReviewRow = Omit<ReviewWithLikes, 'like_count'> & { review_likes: { count: number }[] | null }
+type PhotoRow = { id: string; url: string; user_id: string; photo_likes: { count: number }[] | null }
+
+// 店舗ごとのタイトル・説明文・共有時のプレビュー（検索結果やSNSで店名が出るように）
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const { data: shop } = await createClient()
+    .from('shops')
+    .select('name, prefecture, address, review_count, avg_total, weekly_event_count, cover_photo_urls')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!shop) return { title: '店舗が見つかりません' }
+
+  const rating =
+    shop.review_count > 0 && shop.avg_total !== null
+      ? `評価${Number(shop.avg_total).toFixed(1)}（${shop.review_count}件）・`
+      : ''
+  const description = `${shop.prefecture ?? ''}のMTG公認店舗「${shop.name}」の口コミとイベント情報。${rating}週${shop.weekly_event_count}回のイベントを開催。${shop.address ?? ''}`
+  const title = `${shop.name}の口コミ・イベント情報`
+  const images = shop.cover_photo_urls?.length ? [{ url: shop.cover_photo_urls[0] }] : undefined
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/shops/${id}` },
+    // openGraphは親（layout）の設定と結合されず置き換わるため、サイト名・ロケールもここで指定する
+    openGraph: { title, description, url: `/shops/${id}`, siteName: 'ShopTutor', locale: 'ja_JP', type: 'website', ...(images && { images }) },
+    twitter: { card: 'summary_large_image', title, description, ...(images && { images }) },
+  }
 }
 
 export default async function ShopDetailPage({ params }: Props) {
@@ -66,12 +100,12 @@ export default async function ShopDetailPage({ params }: Props) {
     .then(() => {})
     .catch(() => {})
 
-  const reviews: ReviewWithLikes[] = (reviewsData ?? []).map((r: any) => ({
+  const reviews: ReviewWithLikes[] = ((reviewsData ?? []) as unknown as ReviewRow[]).map((r) => ({
     ...r,
     like_count: r.review_likes?.[0]?.count ?? 0,
   }))
 
-  const photos = (photosData ?? []).map((p: any) => ({
+  const photos = ((photosData ?? []) as unknown as PhotoRow[]).map((p) => ({
     id: p.id,
     url: p.url,
     user_id: p.user_id,
@@ -112,9 +146,9 @@ export default async function ShopDetailPage({ params }: Props) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-background pb-28">
       {/* ヘッダー＋セクションへの移動 */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-12 flex items-center gap-2">
           <BackButton />
           <div className="text-sm font-bold text-gray-900 truncate">{shop.name}</div>
@@ -140,7 +174,7 @@ export default async function ShopDetailPage({ params }: Props) {
         )}
 
         {/* 基本情報 */}
-        <div className="bg-white rounded-xl border p-4 flex flex-col gap-3">
+        <div className="surface p-4 flex flex-col gap-3">
           <ShopBadges shop={shop} />
           <h1 className="text-xl font-bold text-gray-900 leading-snug">{shop.name}</h1>
 
@@ -211,7 +245,7 @@ export default async function ShopDetailPage({ params }: Props) {
 
         {/* 営業時間・駐車場（プレミアム店舗のオーナー設定情報） */}
         {(shop.business_hours || shop.parking_available !== null) && (
-          <section id="info" className="scroll-mt-28 bg-white rounded-xl border p-4 flex flex-col gap-3">
+          <section id="info" className="scroll-mt-28 surface p-4 flex flex-col gap-3">
             <h2 className="font-bold text-base text-gray-900">店舗情報</h2>
             {shop.business_hours && (
               <div className="flex items-start gap-2 text-sm text-gray-700">
@@ -255,7 +289,7 @@ export default async function ShopDetailPage({ params }: Props) {
       {/* 下部アクションバー（BottomNavの代わりに表示） */}
       <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-lg mx-auto px-4 py-2.5 flex gap-2">
-          <FavoriteButton shopId={shop.id} variant="bar" />
+          <FavoriteButton shopId={shop.id} />
           <Link
             href={`/shops/${shop.id}/review`}
             className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-bold text-gray-800 inline-flex items-center justify-center gap-1.5 hover:bg-gray-50"

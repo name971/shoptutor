@@ -15,8 +15,8 @@ export default function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t pb-[env(safe-area-inset-bottom)]">
-      <div className="h-14 flex items-stretch max-w-lg mx-auto">
+    <nav className="fixed bottom-0 inset-x-0 z-20 app-header shadow-[0_-1px_0_rgba(15,23,42,0.06)] pb-[env(safe-area-inset-bottom)]">
+      <div className="h-16 flex items-stretch max-w-lg mx-auto">
         {TABS.map((tab) => {
           const isActive = tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href)
           const Icon = tab.icon
@@ -25,12 +25,17 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[11px] transition-colors ${
+                isActive ? 'text-slate-900 font-bold' : 'text-slate-500 font-medium hover:text-slate-700'
               }`}
             >
-              {isActive && <span className="absolute top-0 h-[3px] w-7 rounded-b bg-blue-600" />}
-              <Icon size={22} strokeWidth={isActive ? 2.4 : 2} />
+              <span
+                className={`flex items-center justify-center h-7 w-14 rounded-full transition-colors ${
+                  isActive ? 'bg-blue-100 text-blue-700' : ''
+                }`}
+              >
+                <Icon size={21} strokeWidth={isActive ? 2.4 : 2} />
+              </span>
               <span>{tab.label}</span>
             </Link>
           )

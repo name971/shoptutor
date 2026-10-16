@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { M_PLUS_2, Dela_Gothic_One } from "next/font/google";
 import "./globals.css";
 import BottomNavGate from "@/components/layout/BottomNavGate";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// 日本語フォントはGoogle Fonts側で文字ごとに細かく分割されており、ブラウザは画面に出る文字を含むファイルだけを読み込む。
+// next/fontでVercelから配信し（Googleへの通信なし）、全分割ファイルを先読みしないようpreloadは無効にする
+// 本文・UI：M PLUS 2（1ファイルで細字〜極太まで出せる可変フォント）
+const mPlus2 = M_PLUS_2({
+  variable: "--font-mplus2",
+  weight: "variable",
+  display: "swap",
+  preload: false,
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// ロゴ・大見出しだけに使う極太の見出し用フォント（太さは1種類のみ）
+const delaGothicOne = Dela_Gothic_One({
+  variable: "--font-dela-gothic",
+  weight: "400",
+  display: "swap",
+  preload: false,
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -48,7 +56,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${mPlus2.variable} ${delaGothicOne.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

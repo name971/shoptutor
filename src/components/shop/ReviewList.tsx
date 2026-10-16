@@ -169,7 +169,7 @@ export default function ReviewList({ reviews }: Props) {
 
       <div className="flex flex-col gap-3">
         {filteredSorted.map((review) => (
-          <div key={review.id} className="bg-white rounded-xl border p-3">
+          <div key={review.id} className="surface p-3">
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-700">

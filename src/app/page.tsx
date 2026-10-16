@@ -12,7 +12,9 @@ import {
   formatDayHeading,
 } from '@/lib/eventTime'
 import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
-import FormatBadge from '@/components/ui/FormatBadge'
+import EventRow from '@/components/event/EventRow'
+import { SkeletonList } from '@/components/ui/Skeleton'
+import { groupByDate } from '@/lib/groupByDate'
 import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import AuthStatus from '@/components/auth/AuthStatus'
@@ -114,6 +116,7 @@ export default function HomePage() {
   useEffect(() => {
     const saved = loadSavedFilters()
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setRadiusKey(saved.radiusKey ?? '5')
       setSelectedFormat(saved.selectedFormat ?? null)
       setPeriod(saved.period ?? 'today')
@@ -191,6 +194,7 @@ export default function HomePage() {
   // いきなり許可ダイアログを出さず、以前に許可済みの場合のみ自動で取得する
   useEffect(() => {
     if (!navigator.geolocation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setLocationStatus('unsupported')
       return
     }
@@ -321,27 +325,18 @@ export default function HomePage() {
     setLoadingMore(false)
   }
 
-  // 日付ごとにまとめる（取得時点で日付→開始時刻の順に並んでいる）
-  const groups = useMemo(() => {
-    const result: { date: string; items: EventItem[] }[] = []
-    events.forEach((e) => {
-      const last = result[result.length - 1]
-      if (last && last.date === e.held_at) last.items.push(e)
-      else result.push({ date: e.held_at, items: [e] })
-    })
-    return result
-  }, [events])
+  const groups = useMemo(() => groupByDate(events), [events])
 
   const showLocationPrompt = !location && (locationStatus === 'idle' || locationStatus === 'requesting')
   const hasMore = totalCount !== null && events.length < totalCount
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b sticky top-0 z-10">
+    <div className="min-h-screen bg-background pb-24">
+      <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 pt-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[11px] font-bold text-blue-600 tracking-wide">ShopTutor</div>
-            <h1 className="font-bold text-lg text-gray-900 leading-tight">どこで遊ぶ？</h1>
+            <div className="font-display text-sm text-blue-600 leading-none mb-1">ShopTutor</div>
+            <h1 className="font-display text-2xl text-slate-900 leading-tight">どこで遊ぶ？</h1>
           </div>
           <div className="flex items-center gap-2">
             {location ? (
@@ -423,73 +418,56 @@ export default function HomePage() {
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
         {showLocationPrompt && (
-          <div className="bg-white border rounded-xl p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                <LocateFixed size={20} />
-              </span>
-              <div className="font-bold text-sm text-gray-900">近くのイベントから表示します</div>
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              現在地は店舗までの距離の計算だけに使い、保存しません。使わない場合は全国のイベントを表示します。
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={skipLocation}
-                className="h-11 rounded-xl border border-gray-200 text-sm font-bold text-gray-700"
-              >
-                全国で見る
-              </button>
-              <button
-                type="button"
-                onClick={requestLocation}
-                disabled={locationStatus === 'requesting'}
-                className="h-11 rounded-xl bg-blue-600 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
-              >
-                <LocateFixed size={16} />
-                {locationStatus === 'requesting' ? '取得中...' : '現在地を使う'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {locationStatus === 'denied' && (
-          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            位置情報を取得できませんでした。全国のイベントを表示しています。端末の設定で位置情報を許可すると、近くのイベントに絞り込めます。
-          </p>
-        )}
-
-        {formatFromProfile && selectedFormat && (
-          <div className="flex items-center gap-2 text-xs bg-green-50 text-green-800 rounded-lg px-3 py-2">
-            <span className="flex-1">
-              メインフォーマット（{FORMAT_LABELS[selectedFormat]}）で絞り込んでいます
+          <div className="surface p-3 flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <LocateFixed size={18} />
             </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-slate-900">近くのイベントを見る</div>
+              <div className="text-[11px] text-slate-500">位置は距離の計算だけに使います</div>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setSelectedFormat(null)
-                setFormatFromProfile(false)
-              }}
-              className="inline-flex items-center gap-0.5 font-medium text-green-900"
+              onClick={requestLocation}
+              disabled={locationStatus === 'requesting'}
+              className="h-9 px-3 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-60 flex-shrink-0"
             >
-              解除
-              <X size={14} />
+              {locationStatus === 'requesting' ? '取得中…' : '現在地を使う'}
+            </button>
+            <button
+              type="button"
+              onClick={skipLocation}
+              aria-label="使わずに全国のイベントを見る"
+              className="p-1 -mr-1 text-slate-400 hover:text-slate-600 flex-shrink-0"
+            >
+              <X size={18} />
             </button>
           </div>
         )}
 
-        <EventNotice />
-
-        {!loading && totalCount !== null && totalCount > 0 && (
-          <div className="text-xs text-gray-600">
-            {location && radiusKm !== null ? `現在地から${radiusKm}km以内` : '全国'}のイベント{' '}
-            <span className="font-bold text-gray-900 tabular-nums">{totalCount}</span>件（開始時刻順）
-          </div>
+        {locationStatus === 'denied' && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">位置情報を使えないため、全国のイベントを表示しています</p>
         )}
 
+        {formatFromProfile && selectedFormat && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedFormat(null)
+              setFormatFromProfile(false)
+            }}
+            className="self-start inline-flex items-center gap-1 h-7 pl-3 pr-2 rounded-full text-xs font-medium bg-green-50 text-green-800"
+            aria-label="メインフォーマットでの絞り込みを解除"
+          >
+            メインの{FORMAT_LABELS[selectedFormat]}で表示中
+            <X size={14} />
+          </button>
+        )}
+
+        <EventNotice />
+
         {loading ? (
-          <div className="text-center text-gray-400 text-sm py-8">読み込み中...</div>
+          <SkeletonList kind="event" />
         ) : events.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
             該当するイベントが見つかりませんでした
@@ -508,34 +486,23 @@ export default function HomePage() {
           <>
             {groups.map((group) => (
               <section key={group.date} className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-gray-900 pt-1">{formatDayHeading(group.date)}</h2>
+                <h2 className="text-sm font-bold text-slate-900 pt-1">{formatDayHeading(group.date)}</h2>
                 {group.items.map((event) => {
                   const shop = shopById.get(event.shop_id)
                   return (
-                    <Link
+                    <EventRow
                       key={event.id}
                       href={`/shops/${event.shop_id}`}
-                      className="bg-white rounded-xl border p-3 flex gap-3 hover:border-blue-300 transition-colors"
-                    >
-                      <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-gray-100 pr-3">
-                        <span className="text-base font-bold text-gray-900 tabular-nums">
-                          {event.start_time ?? '—'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col gap-1">
-                        <div className="text-sm font-bold text-gray-900 truncate">{shop?.name}</div>
-                        <div className="text-xs text-gray-600 truncate">{event.title}</div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <FormatBadge format={event.format} size="sm" />
-                          <span className="truncate">
-                            {shop?.prefecture}
-                            {shop?.distance !== null && shop?.distance !== undefined && (
-                              <span className="tabular-nums"> · {shop.distance.toFixed(1)}km</span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+                      startTime={event.start_time}
+                      shopName={shop?.name}
+                      title={event.title}
+                      format={event.format}
+                      meta={
+                        shop?.distance !== null && shop?.distance !== undefined
+                          ? `${shop.distance.toFixed(1)}km`
+                          : shop?.prefecture
+                      }
+                    />
                   )
                 })}
               </section>
@@ -555,7 +522,7 @@ export default function HomePage() {
 
         <Link
           href="/shops"
-          className="mt-2 flex items-center gap-3 bg-white border rounded-xl p-3 hover:border-blue-300"
+          className="mt-2 flex items-center gap-3 surface p-3 hover:shadow-md"
         >
           <span className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0">
             <Store size={20} />

@@ -100,7 +100,7 @@ export default function OwnerShopForm({ shop }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs text-gray-500">PR表示・おすすめ順ブースト</div>
-          <p className="text-[10px] text-gray-400 mt-0.5">
+          <p className="text-[11px] text-gray-400 mt-0.5">
             OFFにするとPRラベルは表示されず、おすすめ順の優遇もされなくなります
           </p>
         </div>

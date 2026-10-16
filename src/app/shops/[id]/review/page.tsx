@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import StarRatingInput from '@/components/ui/StarRatingInput'
 import BackButton from '@/components/ui/BackButton'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const RATING_FIELDS = [
   { key: 'stock_rating', label: '品揃え・在庫' },
@@ -35,6 +36,7 @@ export default function ReviewFormPage() {
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const { confirm, confirmDialog } = useConfirm()
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function ReviewFormPage() {
 
   const handleDelete = async () => {
     if (!reviewId || !userId) return
-    if (!window.confirm('このレビューを削除しますか？この操作は取り消せません。')) return
+    if (!(await confirm({ title: 'このレビューを削除しますか？', message: 'この操作は取り消せません。', confirmLabel: '削除する', danger: true }))) return
 
     setDeleting(true)
     const supabase = createClient()
@@ -151,16 +153,21 @@ export default function ReviewFormPage() {
   if (checking) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-        <BackButton />
-        <div className="font-bold text-sm flex-1 truncate">
-          {reviewId ? 'レビューを編集' : 'レビューを投稿'}{shopName && ` · ${shopName}`}
+    <div className="min-h-screen bg-background">
+      {confirmDialog}
+      <div className="app-header sticky top-0 z-10">
+        <div className="max-w-lg mx-auto px-4 h-14 flex items-center gap-2">
+          <BackButton />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-bold text-slate-500">{reviewId ? 'レビューを編集' : 'レビューを投稿'}</div>
+            <div className="font-bold text-sm text-slate-900 truncate">{shopName}</div>
+          </div>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-4">
-        <div className="bg-white rounded-xl border p-3 flex flex-col gap-3">
+        <div className="surface p-4 flex flex-col gap-4">
+          <h2 className="font-bold text-base text-slate-900">5項目で評価</h2>
           {RATING_FIELDS.map((f) => (
             <StarRatingInput
               key={f.key}
@@ -171,26 +178,33 @@ export default function ReviewFormPage() {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl border p-3">
+        <div className="surface p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">コメント（任意）</span>
-            <span className="text-xs text-gray-400">{body.trim().length}字</span>
+            <label htmlFor="review-body" className="font-bold text-base text-slate-900">コメント（任意）</label>
+            <span
+              className={`text-xs tabular-nums ${
+                body.trim().length > 0 && body.trim().length < MIN_BODY_LENGTH ? 'text-amber-600 font-bold' : 'text-slate-400'
+              }`}
+            >
+              {body.trim().length}／{MIN_BODY_LENGTH}字以上
+            </span>
           </div>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={5}
+            id="review-body"
+            rows={6}
             placeholder={`入力する場合は${MIN_BODY_LENGTH}字以上でお願いします`}
-            className="w-full text-sm border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:border-blue-400"
+            className="w-full text-base bg-slate-50 rounded-xl p-3 resize-none ring-1 ring-inset ring-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
         <button
           onClick={handleSubmit}
           disabled={saving || deleting}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="w-full h-12 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {saving ? '保存中...' : reviewId ? '更新する' : '投稿する'}
         </button>
@@ -199,7 +213,7 @@ export default function ReviewFormPage() {
           <button
             onClick={handleDelete}
             disabled={saving || deleting}
-            className="w-full rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+            className="w-full h-12 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
           >
             {deleting ? '削除中...' : 'レビューを削除'}
           </button>

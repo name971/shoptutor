@@ -30,8 +30,8 @@ export default function BottomSheet({ open, title, onClose, children, footer }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="閉じる" onClick={onClose} className="absolute inset-0 bg-black/40" />
-      <div className="relative w-full max-w-lg bg-white rounded-t-2xl shadow-xl flex flex-col max-h-[85dvh] pb-[env(safe-area-inset-bottom)]">
+      <button type="button" aria-label="閉じる" onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" />
+      <div className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[85dvh] pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-gray-200" />
         <div className="flex items-center justify-between px-4 pt-2 pb-3">
           <div className="font-bold text-base text-gray-900">{title}</div>

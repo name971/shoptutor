@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -20,6 +21,7 @@ type Props = {
 const PAGE_SIZE = 5
 
 export default function PhotoGallery({ shopId, initialPhotos }: Props) {
+  const { confirm, confirmDialog } = useConfirm()
   const router = useRouter()
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos)
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
@@ -104,7 +106,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
 
   const handleDelete = async (photoId: string) => {
     if (!userId) return
-    if (!window.confirm('この写真を削除しますか？この操作は取り消せません。')) return
+    if (!(await confirm({ title: 'この写真を削除しますか？', message: 'この操作は取り消せません。', confirmLabel: '削除する', danger: true }))) return
 
     const supabase = createClient()
     const target = photos.find((p) => p.id === photoId)
@@ -126,13 +128,15 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="surface p-4">
+      {confirmDialog}
       <h2 className="font-bold text-base text-gray-900 mb-3">写真</h2>
 
       {visible.length > 0 && (
         <div className="grid grid-cols-3 gap-2 mb-3">
           {visible.map((photo) => (
             <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden border">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 投稿写真はアップロード時にWebP・1MB以下へ圧縮済みのため、画像最適化は使わない */}
               <img src={photo.url} alt="" loading="lazy" className="w-full h-full object-cover" />
               {userId === photo.user_id && (
                 <button
