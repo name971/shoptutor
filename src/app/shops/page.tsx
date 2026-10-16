@@ -14,7 +14,6 @@ import ShopCard from '@/components/shop/ShopCard'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
-import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
 import { cached, peekCached } from '@/lib/clientCache'
 import { getFormatCount } from '@/lib/shopFormat'
 import Chip from '@/components/ui/Chip'
@@ -76,9 +75,6 @@ export default function ShopsPage() {
   const [favoriteCounts, setFavoriteCounts] = useState<Map<string, number>>(
     () => peekCached<Map<string, number>>(FAVORITE_COUNTS_CACHE_KEY) ?? new Map()
   )
-  const [nextEvents, setNextEvents] = useState<Map<string, NextEvent>>(
-    () => peekCached<Map<string, NextEvent>>('next-events') ?? new Map()
-  )
   const [filtered, setFiltered] = useState<ShopListItem[]>(shops)
   const [prefectureFilter, setPrefectureFilter] = useState<string | null>(null)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
@@ -91,7 +87,8 @@ export default function ShopsPage() {
   const [loading, setLoading] = useState(shops.length === 0)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [view, setView] = useState<View>('list')
+  // 店舗タブは「どこへ行くか」を探す画面なので、初めて開いたときは地図から始める
+  const [view, setView] = useState<View>('map')
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ shop: ShopListItem; ts: number } | null>(null)
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
@@ -111,7 +108,7 @@ export default function ShopsPage() {
       setMeisterOnly(saved.meisterOnly ?? false)
       setSearchQuery(saved.searchQuery ?? '')
       setVisibleCount(saved.visibleCount ?? PAGE_SIZE)
-      setView(saved.view ?? 'list')
+      setView(saved.view ?? 'map')
     }
     // 旧「地図」タブ（/map）からのリダイレクトは ?view=map で地図表示から始める
     if (new URLSearchParams(window.location.search).get('view') === 'map') {
@@ -128,7 +125,7 @@ export default function ShopsPage() {
         const { data, error } = await supabase
           .from('shops')
           .select(
-            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count'
+            'id, name, address, prefecture, lat, lng, is_wpn_premium, is_teaching_meister, is_premium, pr_enabled, first_listed_at, weekly_event_count, commander_count, standard_count, modern_count, pioneer_count, legacy_count, limited_count, review_count, avg_total, view_count, cover_photo_urls'
           )
           .eq('status', 'active')
         if (error) throw error
@@ -139,13 +136,11 @@ export default function ShopsPage() {
         if (error) throw error
         return new Map((data ?? []).map((r) => [r.shop_id as string, r.favorite_count as number]))
       }).catch(() => new Map<string, number>()),
-      fetchNextEvents(supabase),
     ])
-      .then(([list, counts, nextEventMap]) => {
+      .then(([list, counts]) => {
         setShops(list)
         setFiltered(list)
         setFavoriteCounts(counts)
-        setNextEvents(nextEventMap)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -469,7 +464,7 @@ export default function ShopsPage() {
             {selectedShop ? (
               <div className="absolute z-[1000] bottom-3 inset-x-3 md:right-auto md:w-96">
                 <div className="relative shadow-lg rounded-xl">
-                  <ShopCard shop={selectedShop} nextEvent={nextEvents.get(selectedShop.id)} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
+                  <ShopCard shop={selectedShop} isPr={selectedShop.is_premium && selectedShop.pr_enabled} />
                   <button
                     type="button"
                     onClick={() => setSelectedShopId(null)}
@@ -516,7 +511,6 @@ export default function ShopsPage() {
                       <ShopCard
                         key={shop.id}
                         shop={shop}
-                        nextEvent={nextEvents.get(shop.id)}
                         isPr={shop.is_premium && shop.pr_enabled}
                         onClick={() => selectShopFromList(shop)}
                       />
@@ -543,7 +537,6 @@ export default function ShopsPage() {
                   <ShopCard
                     key={shop.id}
                     shop={shop}
-                    nextEvent={nextEvents.get(shop.id)}
                     isPr={shop.is_premium && shop.pr_enabled}
                     showPrefecture={false}
                     onClick={() => selectShopFromList(shop)}
@@ -610,7 +603,7 @@ export default function ShopsPage() {
           <>
             <div className="flex flex-col gap-2">
               {visibleShops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} nextEvent={nextEvents.get(shop.id)} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
+                <ShopCard key={shop.id} shop={shop} isPr={shop.is_premium && shop.pr_enabled} showPrefecture={prefectureFilter === null} />
               ))}
             </div>
             {filtered.length > visibleCount && (

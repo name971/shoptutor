@@ -9,11 +9,12 @@ import {
   jstDateKey,
   jstTimeKey,
   addDaysToKey,
-  weekdayOfKey,
   formatDayHeading,
+  isStartingSoon,
 } from '@/lib/eventTime'
 import { FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, FORMAT_LABELS, OTHER_FORMAT_KEYS } from '@/types'
 import EventRow from '@/components/event/EventRow'
+import DateStrip from '@/components/event/DateStrip'
 import ReminderList from '@/components/event/ReminderList'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { groupByDate } from '@/lib/groupByDate'
@@ -33,14 +34,9 @@ const RADIUS_OPTIONS = [
 
 type RadiusKey = (typeof RADIUS_OPTIONS)[number]['key']
 
-const PERIODS = [
-  { key: 'today', label: '今日' },
-  { key: 'tomorrow', label: '明日' },
-  { key: 'weekend', label: '今週末' },
-  { key: 'week', label: '7日間' },
-] as const
-
-type PeriodKey = (typeof PERIODS)[number]['key']
+// 日付の選択：'YYYY-MM-DD'（その日だけ）か 'week'（今日から7日間）
+type DayKey = string
+const NO_COUNTS = new Map<string, number>()
 
 // Supabaseの1回の取得上限（既定1000件）を超えないよう、ページ単位で取得する
 const PAGE_SIZE = 50
@@ -63,7 +59,7 @@ type EventItem = {
   shops: { name: string; prefecture: string } | null
 }
 
-const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters'
+const FILTERS_STORAGE_KEY = 'shoptutor_home_events_filters_v2'
 // 「現在地を使う」を一度押したユーザーは、次回以降は説明カードを出さずに位置情報を取得する
 const LOCATION_OPT_IN_KEY = 'shoptutor_location_opt_in'
 const LOCATION_SKIPPED_KEY = 'shoptutor_location_skipped'
@@ -76,7 +72,7 @@ type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'skipped' |
 function loadSavedFilters(): {
   radiusKey: RadiusKey
   selectedFormat: string | null
-  period: PeriodKey
+  day: DayKey
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -87,21 +83,11 @@ function loadSavedFilters(): {
   }
 }
 
-// 期間の開始日・終了日（JSTの日付キー）
-function periodRange(period: PeriodKey): { from: string; to: string } {
+// 選択した日の開始日・終了日（JSTの日付キー）
+function dayRange(day: DayKey): { from: string; to: string } {
   const today = jstDateKey()
-  if (period === 'today') return { from: today, to: today }
-  if (period === 'tomorrow') {
-    const tomorrow = addDaysToKey(today, 1)
-    return { from: tomorrow, to: tomorrow }
-  }
-  if (period === 'weekend') {
-    const weekday = weekdayOfKey(today)
-    if (weekday === 0) return { from: today, to: today }
-    const saturday = addDaysToKey(today, 6 - weekday)
-    return { from: saturday, to: addDaysToKey(saturday, 1) }
-  }
-  return { from: today, to: addDaysToKey(today, 6) }
+  if (day === 'week') return { from: today, to: addDaysToKey(today, 6) }
+  return { from: day, to: day }
 }
 
 export default function HomePage() {
@@ -111,7 +97,8 @@ export default function HomePage() {
   const [radiusKey, setRadiusKey] = useState<RadiusKey>('5')
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null)
   const [formatFromProfile, setFormatFromProfile] = useState(false)
-  const [period, setPeriod] = useState<PeriodKey>('today')
+  const [day, setDay] = useState<DayKey>(() => jstDateKey())
+  const [dayCounts, setDayCounts] = useState<Map<string, number>>(new Map())
   const [filtersRestored, setFiltersRestored] = useState(false)
   const [shopCoords, setShopCoords] = useState<ShopCoord[] | null>(null)
   const [events, setEvents] = useState<EventItem[]>([])
@@ -128,7 +115,8 @@ export default function HomePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
       setRadiusKey(saved.radiusKey ?? '5')
       setSelectedFormat(saved.selectedFormat ?? null)
-      setPeriod(saved.period ?? 'today')
+      // 前回の訪問で選んだ日が過ぎていたら今日に戻す
+      setDay(saved.day && (saved.day === 'week' || saved.day >= jstDateKey()) ? saved.day : jstDateKey())
       setFiltersRestored(true)
       return
     }
@@ -163,12 +151,12 @@ export default function HomePage() {
     try {
       window.sessionStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({ radiusKey, selectedFormat, period })
+        JSON.stringify({ radiusKey, selectedFormat, day })
       )
     } catch {
       // 保存失敗は無視
     }
-  }, [filtersRestored, radiusKey, selectedFormat, period])
+  }, [filtersRestored, radiusKey, selectedFormat, day])
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
@@ -269,7 +257,7 @@ export default function HomePage() {
   const fetchPage = useCallback(
     async (offset: number) => {
       const supabase = createClient()
-      const { from, to } = periodRange(period)
+      const { from, to } = dayRange(day)
       const today = jstDateKey()
 
       let query = supabase
@@ -305,7 +293,7 @@ export default function HomePage() {
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
     },
-    [period, selectedFormat, targetShopIds, isRadiusLimited]
+    [day, selectedFormat, targetShopIds, isRadiusLimited]
   )
 
   useEffect(() => {
@@ -330,6 +318,31 @@ export default function HomePage() {
     }
     load()
   }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, fetchPage])
+
+  // カレンダー帯に出す日ごとの件数（フォーマット・半径の絞り込みを反映。7日分を1回で取得）
+  useEffect(() => {
+    if (!filtersRestored || (isRadiusLimited && shopCoords === null)) return
+    // 半径内に店舗がないときは取得しない（表示側で0件扱いにする）
+    if (isRadiusLimited && targetShopIds.length === 0) return
+    const today = jstDateKey()
+    const formats = selectedFormat === 'other' ? OTHER_FORMAT_KEYS : selectedFormat ? [selectedFormat] : null
+    let cancelled = false
+    createClient()
+      .rpc('event_counts_by_day', {
+        p_from: today,
+        p_to: addDaysToKey(today, 6),
+        p_formats: formats,
+        p_shop_ids: isRadiusLimited ? targetShopIds : null,
+      })
+      .then(({ data, error }) => {
+        if (cancelled || error) return
+        const rows = Array.isArray(data) ? (data as { held_at: string; event_count: number }[]) : []
+        setDayCounts(new Map(rows.map((r) => [r.held_at, r.event_count])))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [filtersRestored, isRadiusLimited, shopCoords, targetShopIds, selectedFormat])
 
   const loadMore = async () => {
     const requestId = requestIdRef.current
@@ -389,22 +402,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-lg mx-auto px-4 pt-3">
-          <div className="flex bg-gray-100 rounded-xl p-1" role="group" aria-label="期間">
-            {PERIODS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setPeriod(p.key)}
-                aria-pressed={period === p.key}
-                className={`flex-1 h-8 rounded-lg text-sm font-medium transition-colors ${
-                  period === p.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="max-w-lg mx-auto px-3 pt-3">
+          <DateStrip
+            selected={day}
+            onSelect={setDay}
+            counts={isRadiusLimited && targetShopIds.length === 0 ? NO_COUNTS : dayCounts}
+          />
         </div>
 
         <ChipRow className="max-w-lg mx-auto py-2">
@@ -489,8 +492,8 @@ export default function HomePage() {
         ) : events.length === 0 ? (
           <div className="text-center text-gray-500 text-sm py-8 flex flex-col items-center gap-3">
             該当するイベントが見つかりませんでした
-            {period !== 'week' && (
-              <button type="button" onClick={() => setPeriod('week')} className="text-blue-600 font-medium">
+            {day !== 'week' && (
+              <button type="button" onClick={() => setDay('week')} className="text-blue-600 font-medium">
                 7日間で探す
               </button>
             )}
@@ -503,8 +506,8 @@ export default function HomePage() {
         ) : (
           <>
             {groups.map((group) => (
-              <section key={group.date} className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-slate-900 pt-1">{formatDayHeading(group.date)}</h2>
+              <section key={group.date} className="flex flex-col">
+                <h2 className="text-sm font-bold text-slate-900 pt-1 pb-1">{formatDayHeading(group.date)}</h2>
                 {groupSameShopAndTime(group.items).map((bundle) => {
                   const event = bundle[0]
                   const distance = distanceById.get(event.shop_id)
@@ -513,6 +516,7 @@ export default function HomePage() {
                       key={event.id}
                       href={`/shops/${event.shop_id}`}
                       startTime={event.start_time}
+                      soon={isStartingSoon(event.held_at, event.start_time)}
                       shopName={event.shops?.name}
                       meta={distance !== undefined ? `${distance.toFixed(1)}km` : event.shops?.prefecture}
                       items={bundle.map((e) => ({
