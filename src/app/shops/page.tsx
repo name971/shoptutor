@@ -17,6 +17,7 @@ import { computeRecommendScores } from '@/lib/recommend'
 import { fetchNextEvents, type NextEvent } from '@/lib/nextEvents'
 import { getFormatCount } from '@/lib/shopFormat'
 import Chip from '@/components/ui/Chip'
+import ChipRow from '@/components/ui/ChipRow'
 import BottomSheet from '@/components/ui/BottomSheet'
 import { Search, SlidersHorizontal, X, ChevronDown, List, Map as MapIcon, Info } from 'lucide-react'
 import type { MapBounds } from '@/components/map/ShopMap'
@@ -322,7 +323,7 @@ export default function ShopsPage() {
         </div>
         <AuthStatus />
       </div>
-      <div className={`${view === 'list' ? 'max-w-lg' : ''} mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar`}>
+      <ChipRow className={`${view === 'list' ? 'max-w-lg' : ''} mx-auto py-2`}>
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
@@ -345,7 +346,7 @@ export default function ShopsPage() {
             {f.label}
           </Chip>
         ))}
-      </div>
+      </ChipRow>
     </div>
   )
 

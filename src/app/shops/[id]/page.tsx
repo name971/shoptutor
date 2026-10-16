@@ -8,6 +8,7 @@ import PhotoGallery from '@/components/shop/PhotoGallery'
 import CoverPhotoGrid from '@/components/shop/CoverPhotoGrid'
 import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
+import DetailHeaderTitle from '@/components/shop/DetailHeaderTitle'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
 import { notFound } from 'next/navigation'
@@ -151,7 +152,7 @@ export default async function ShopDetailPage({ params }: Props) {
       <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-12 flex items-center gap-2">
           <BackButton />
-          <div className="text-sm font-bold text-gray-900 truncate">{shop.name}</div>
+          <DetailHeaderTitle shopName={shop.name} targetId="shop-name" />
         </div>
         <nav className="max-w-lg mx-auto px-2 flex" aria-label="ページ内の移動">
           {sectionLinks.map((l) => (
@@ -176,7 +177,7 @@ export default async function ShopDetailPage({ params }: Props) {
         {/* 基本情報 */}
         <div className="surface p-4 flex flex-col gap-3">
           <ShopBadges shop={shop} />
-          <h1 className="text-xl font-bold text-gray-900 leading-snug">{shop.name}</h1>
+          <h1 id="shop-name" className="text-xl font-bold text-gray-900 leading-snug">{shop.name}</h1>
 
           <div className="flex flex-col gap-1.5 text-sm">
             <a

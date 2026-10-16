@@ -17,6 +17,7 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { groupByDate } from '@/lib/groupByDate'
 import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
+import ChipRow from '@/components/ui/ChipRow'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { LocateFixed, MapPin, X, Store } from 'lucide-react'
 
@@ -391,7 +392,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+        <ChipRow className="max-w-lg mx-auto py-2">
           <Chip
             selected={selectedFormat === null}
             onClick={() => {
@@ -413,7 +414,7 @@ export default function HomePage() {
               {f.label}
             </Chip>
           ))}
-        </div>
+        </ChipRow>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
