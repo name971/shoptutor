@@ -11,6 +11,7 @@ import {
 } from '@/types'
 import { createClient } from '@/lib/supabase'
 import ShopCard from '@/components/shop/ShopCard'
+import FormatColorLegend from '@/components/shop/FormatColorLegend'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import AuthStatus from '@/components/auth/AuthStatus'
 import { computeRecommendScores } from '@/lib/recommend'
@@ -708,6 +709,8 @@ export default function ShopsPage() {
             <ChevronDown size={14} />
           </button>
         </div>
+
+        {!loading && filtered.length > 0 && <FormatColorLegend />}
 
         {loading ? (
           <SkeletonList kind="shop" />
