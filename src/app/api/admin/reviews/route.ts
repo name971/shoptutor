@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   let query = admin
     .from('reviews')
-    .select('*, shops(id, name), profiles(name)', { count: 'exact' })
+    .select('*, shops(id, name), profiles!reviews_user_id_fkey(name)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1)
 

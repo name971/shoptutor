@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
+import FormatColorLegend from '@/components/shop/FormatColorLegend'
 import EventNotice from '@/components/shared/EventNotice'
 import { isEventPast, jstDateKey, addDaysToKey, formatDayHeading, isStartingSoon } from '@/lib/eventTime'
 import DateStrip from '@/components/event/DateStrip'
@@ -198,6 +199,7 @@ export default function FavoritesPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
+              <FormatColorLegend className="mb-1" />
               {shops.map((shop) => (
                 <ShopCard key={shop.id} shop={shop} />
               ))}

@@ -26,7 +26,7 @@ export async function GET() {
     admin.from('shop_favorites').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId),
     admin
       .from('reviews')
-      .select('id, body, is_hidden, created_at, updated_at, is_edited, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, profiles(name)')
+      .select('id, body, is_hidden, created_at, updated_at, is_edited, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, profiles!reviews_user_id_fkey(name)')
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false })
       .limit(10),
