@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const { data, error, count } = await admin
     .from('shop_photos')
-    .select('id, url, caption, created_at, is_deleted, shops(id, name), profiles(name)', { count: 'exact' })
+    .select('id, url, caption, created_at, is_deleted, shops(id, name), profiles!shop_photos_user_id_fkey(name)', { count: 'exact' })
     .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1)

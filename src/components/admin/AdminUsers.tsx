@@ -9,7 +9,7 @@ import { formatDate } from './types'
 
 type AdminUser = {
   id: string
-  name: string
+  name: string | null
   email: string | null
   avatar_url: string | null
   main_format: string | null
@@ -69,12 +69,12 @@ export default function AdminUsers() {
     const ok = await confirm(
       nextBanned
         ? {
-            title: `${user.name}さんをBANしますか？`,
+            title: `${user.name ?? 'このユーザー'}さんをBANしますか？`,
             message: 'BANするとログインできなくなります。投稿済みのレビュー・写真は残るので、必要ならレビュー・写真タブで非表示や削除をしてください。',
             confirmLabel: 'BANする',
             danger: true,
           }
-        : { title: `${user.name}さんのBANを解除しますか？`, confirmLabel: '解除する' }
+        : { title: `${user.name ?? 'このユーザー'}さんのBANを解除しますか？`, confirmLabel: '解除する' }
     )
     if (!ok) return
 
@@ -135,12 +135,12 @@ export default function AdminUsers() {
                       // eslint-disable-next-line @next/next/no-img-element -- 外部認証のアイコン画像（小さく表示するだけ）
                       <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      user.name.slice(0, 1)
+                      (user.name ?? '?').slice(0, 1)
                     )}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-slate-900 truncate flex items-center gap-1.5">
-                      <span className="truncate">{user.name}</span>
+                      <span className={`truncate ${user.name ? '' : 'text-slate-400'}`}>{user.name ?? '（名前未設定）'}</span>
                       {banned && (
                         <span className="flex-shrink-0 text-[11px] font-bold px-1.5 rounded bg-red-100 text-red-700 inline-flex items-center gap-0.5">
                           <Ban size={11} />

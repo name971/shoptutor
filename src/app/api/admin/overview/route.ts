@@ -42,12 +42,12 @@ export async function GET() {
     admin.from('profiles').select('id', count),
     admin
       .from('reviews')
-      .select('id, body, is_hidden, created_at, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, shops(id, name), profiles(name)')
+      .select('id, body, is_hidden, created_at, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, shops(id, name), profiles!reviews_user_id_fkey(name)')
       .order('created_at', { ascending: false })
       .limit(5),
     admin
       .from('shop_photos')
-      .select('id, url, created_at, shops(id, name), profiles(name)')
+      .select('id, url, created_at, shops(id, name), profiles!shop_photos_user_id_fkey(name)')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .limit(6),
