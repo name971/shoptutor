@@ -274,7 +274,10 @@ def scrape_shop_events(shop_id, shop_name):
                 "shop_id": shop_id,
                 "title": event_title,
                 "format_raw": format_text,
-                "format": normalize_format(format_text + " " + event_title),
+                # 公式のフォーマット欄を優先し、判定できない時だけイベント名で補う
+                # （イベント名込みだと「プレモダン」がモダン扱いになる等の誤分類が起きるため）
+                "format": normalize_format(format_text) if normalize_format(format_text) != "unknown"
+                          else normalize_format(event_title),
                 "held_at": str(date),
                 "start_time": start_time,
                 "prefecture": pref_td.get_text().strip() if pref_td else "",
