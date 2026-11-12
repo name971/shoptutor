@@ -959,7 +959,7 @@
   {
     "official_id": "0006088",
     "name": "スポーツカード＆カードゲームショップMINT梅田店",
-    "address": "大阪市北区芝田1-1-3 阪急三番街北館 B1F",
+    "address": "大阪市北区芝田1-1-3 阪急三番街北館B1F",
     "prefecture": "大阪府",
     "lat": 34.70418,
     "lng": 135.49761,
@@ -1447,6 +1447,17 @@
     "prefecture": "北海道",
     "lat": 43.80484,
     "lng": 143.88075,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023604",
+    "name": "カードショップSTOCK KING",
+    "address": "青森市浜田玉川264-1",
+    "prefecture": "青森県",
+    "lat": 40.795799,
+    "lng": 140.762302,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -2178,17 +2189,6 @@
     "status": "active"
   },
   {
-    "official_id": "0012395",
-    "name": "TSUTAYA伊奈店",
-    "address": "北足立郡伊奈町学園2-188-4",
-    "prefecture": "埼玉県",
-    "lat": 36.01015,
-    "lng": 139.61194,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
     "official_id": "0013487",
     "name": "TSUTAYA秩父店",
     "address": "秩父市下宮地町18-9",
@@ -2206,6 +2206,17 @@
     "prefecture": "千葉県",
     "lat": 35.61157,
     "lng": 140.11661,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023841",
+    "name": "まちキャラ千葉駅前店",
+    "address": "千葉市中央区富士見2-3-1　塚本大千葉ビル4階",
+    "prefecture": "千葉県",
+    "lat": 35.611333,
+    "lng": 140.116947,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -2261,6 +2272,17 @@
     "prefecture": "千葉県",
     "lat": 35.78494,
     "lng": 139.90264,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0008700",
+    "name": "ときわ書房本八幡スクエア店",
+    "address": "市川市八幡3-4-1-101",
+    "prefecture": "千葉県",
+    "lat": 35.7231,
+    "lng": 139.92648,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -2696,7 +2718,7 @@
   },
   {
     "official_id": "0009914",
-    "name": "ボードゲーム喫茶天岩庵",
+    "name": "大井町Kanoa",
     "address": "品川区東大井3-1-3",
     "prefecture": "東京都",
     "lat": 35.604664,
@@ -2811,6 +2833,17 @@
     "prefecture": "東京都",
     "lat": 35.70334,
     "lng": 139.66491,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023756",
+    "name": "CARDSHOP WISHBOARD",
+    "address": "新宿区西早稲田3-15-3 リアルビルディング西早稲田4F",
+    "prefecture": "東京都",
+    "lat": 35.710434,
+    "lng": 139.71293,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -2937,6 +2970,17 @@
     "status": "active"
   },
   {
+    "official_id": "0023759",
+    "name": "TSUTAYA Trading Card 府中駅前",
+    "address": "府中市宮町1-50府中くるる2階",
+    "prefecture": "東京都",
+    "lat": 35.67164,
+    "lng": 139.48064,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
     "official_id": "0006523",
     "name": "HOBBY SHOPファミコンくん本店",
     "address": "立川市曙町2-4-9 小町ビル3F",
@@ -2965,6 +3009,17 @@
     "prefecture": "東京都",
     "lat": 35.69606,
     "lng": 139.41215,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0024038",
+    "name": "カードショップオリオンベース",
+    "address": "立川市曙町2丁目42－1",
+    "prefecture": "東京都",
+    "lat": 35.700764,
+    "lng": 139.412101,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3031,17 +3086,6 @@
     "prefecture": "東京都",
     "lat": 35.5457,
     "lng": 139.44564,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0014141",
-    "name": "TSUTAYA西友町田店",
-    "address": "町田市森野1-14-17 西友町田店 3F",
-    "prefecture": "東京都",
-    "lat": 35.54362,
-    "lng": 139.44367,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -3372,6 +3416,17 @@
     "prefecture": "新潟県",
     "lat": 37.68129,
     "lng": 138.87878,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023840",
+    "name": "ピアポイント",
+    "address": "燕市宮町2996-1",
+    "prefecture": "新潟県",
+    "lat": 37.664181,
+    "lng": 138.925928,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -4323,6 +4378,17 @@
     "status": "active"
   },
   {
+    "official_id": "0023839",
+    "name": "晴れる屋 四日市店",
+    "address": "四日市市市安島1-2-18 5F",
+    "prefecture": "三重県",
+    "lat": 34.968056,
+    "lng": 136.617415,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
     "official_id": "0012035",
     "name": "カードボックス松阪店",
     "address": "松阪市川井町上大坪718 パワーセンター松阪",
@@ -4417,6 +4483,17 @@
     "prefecture": "京都府",
     "lat": 35.04043,
     "lng": 135.74674,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023758",
+    "name": "TCG/Board Game Cafe&Bar TOM 京都河原町店",
+    "address": "京都市中京区紙屋町356番2 フィル・パーク四条河原町 2F",
+    "prefecture": "京都府",
+    "lat": 35.00509,
+    "lng": 135.77009,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -4527,6 +4604,17 @@
     "prefecture": "大阪府",
     "lat": 34.70012,
     "lng": 135.55916,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023607",
+    "name": "カードショップガルタ",
+    "address": "大阪市中央区内本町1-3-9 内本町中央ビル303",
+    "prefecture": "大阪府",
+    "lat": 34.6828,
+    "lng": 135.5152,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -4928,6 +5016,17 @@
     "status": "active"
   },
   {
+    "official_id": "0023606",
+    "name": "トレカSunrise神戸三宮店",
+    "address": "神戸市中央区三ノ宮2丁目11番1号センタープラザ西館3階",
+    "prefecture": "兵庫県",
+    "lat": 34.691329,
+    "lng": 135.191451,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
     "official_id": "0005771",
     "name": "イエローサブマリン三宮カードショップ",
     "address": "神戸市中央区三宮町2-11-1 センタープラザ西館205-2",
@@ -5005,6 +5104,17 @@
     "status": "active"
   },
   {
+    "official_id": "0023605",
+    "name": "トレカSunrise西宮北口駅前店",
+    "address": "西宮市甲風園1丁目8-13 兼政ビル301号",
+    "prefecture": "兵庫県",
+    "lat": 34.747759,
+    "lng": 135.356053,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
     "official_id": "0007213",
     "name": "ハリケーン川西店",
     "address": "川西市小戸1-3-12 司ビル201",
@@ -5066,17 +5176,6 @@
     "prefecture": "兵庫県",
     "lat": 34.76818,
     "lng": 134.83585,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0005666",
-    "name": "TSUTAYAフレスポ赤穂店",
-    "address": "赤穂市中広2-8",
-    "prefecture": "兵庫県",
-    "lat": 34.7535,
-    "lng": 134.3999,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -5242,6 +5341,28 @@
     "prefecture": "島根県",
     "lat": 34.89891,
     "lng": 132.08887,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023611",
+    "name": "晴れる屋 岡山店",
+    "address": "岡山市北区中井町1-1-11",
+    "prefecture": "岡山県",
+    "lat": 34.68083,
+    "lng": 133.928508,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023842",
+    "name": "エスクリトーリオ",
+    "address": "岡山市北区富田町2-9-1 小野ビル3F",
+    "prefecture": "岡山県",
+    "lat": 34.669297,
+    "lng": 133.925372,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -5484,6 +5605,17 @@
     "prefecture": "山口県",
     "lat": 33.9492,
     "lng": 130.92366,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0023603",
+    "name": "トレジャーコレクション山口店",
+    "address": "山口市小郡新町6丁目3-30",
+    "prefecture": "山口県",
+    "lat": 34.117568,
+    "lng": 131.4013474,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
