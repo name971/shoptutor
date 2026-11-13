@@ -1,5 +1,16 @@
 [
   {
+    "official_id": "0013627",
+    "name": "晴れる屋郡山店",
+    "address": "郡山市駅前1丁目16-7 アティ郡山8",
+    "prefecture": "福島県",
+    "lat": 37.397,
+    "lng": 140.38727,
+    "is_wpn_premium": true,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0014168",
     "name": "晴れる屋水戸店",
     "address": "水戸市宮町1丁目7-33 水戸OPA6F",
@@ -28,6 +39,17 @@
     "prefecture": "群馬県",
     "lat": 36.33067,
     "lng": 139.1603,
+    "is_wpn_premium": true,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0006936",
+    "name": "東京MTG",
+    "address": "千代田区神田岩本町1-1 岩本町ビル5F",
+    "prefecture": "東京都",
+    "lat": 35.69606,
+    "lng": 139.774963,
     "is_wpn_premium": true,
     "is_teaching_meister": true,
     "status": "active"
@@ -209,6 +231,17 @@
     "status": "active"
   },
   {
+    "official_id": "0013848",
+    "name": "晴れる屋三宮店",
+    "address": "神戸市中央区三宮1-9-1 センタープラザ203",
+    "prefecture": "兵庫県",
+    "lat": 34.69183,
+    "lng": 135.19246,
+    "is_wpn_premium": true,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
     "official_id": "0005619",
     "name": "カードショップ若院",
     "address": "岡山市北区大供1-3-8",
@@ -250,28 +283,6 @@
     "lng": 130.70883,
     "is_wpn_premium": true,
     "is_teaching_meister": true,
-    "status": "active"
-  },
-  {
-    "official_id": "0013627",
-    "name": "晴れる屋郡山店",
-    "address": "郡山市駅前1丁目16-7 アティ郡山8",
-    "prefecture": "福島県",
-    "lat": 37.397,
-    "lng": 140.38727,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0006936",
-    "name": "東京MTG",
-    "address": "千代田区神田岩本町1-1 岩本町ビル5F",
-    "prefecture": "東京都",
-    "lat": 35.69606,
-    "lng": 139.774963,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
     "status": "active"
   },
   {
@@ -325,17 +336,6 @@
     "prefecture": "大阪府",
     "lat": 34.66085,
     "lng": 135.50636,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0013848",
-    "name": "晴れる屋三宮店",
-    "address": "神戸市中央区三宮1-9-1 センタープラザ203",
-    "prefecture": "兵庫県",
-    "lat": 34.69183,
-    "lng": 135.19246,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -1183,6 +1183,17 @@
     "prefecture": "福岡県",
     "lat": 33.63696,
     "lng": 130.6846,
+    "is_wpn_premium": false,
+    "is_teaching_meister": true,
+    "status": "active"
+  },
+  {
+    "official_id": "0020067",
+    "name": "ブックオフイオンモール大牟田店",
+    "address": "大牟田市岬町3-4 イオンモール大牟田2F",
+    "prefecture": "福岡県",
+    "lat": 33.03084043,
+    "lng": 130.4275394,
     "is_wpn_premium": false,
     "is_teaching_meister": true,
     "status": "active"
@@ -2195,6 +2206,17 @@
     "prefecture": "埼玉県",
     "lat": 36.01392,
     "lng": 139.09304,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
+    "official_id": "0024063",
+    "name": "TSUTAYA鴻巣吹上店",
+    "address": "鴻巣市袋90-1　FUJIMALL2F",
+    "prefecture": "埼玉県",
+    "lat": 36.096507,
+    "lng": 139.465465,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
@@ -5935,17 +5957,6 @@
     "prefecture": "福岡県",
     "lat": 33.26583,
     "lng": 130.4694,
-    "is_wpn_premium": false,
-    "is_teaching_meister": false,
-    "status": "active"
-  },
-  {
-    "official_id": "0020067",
-    "name": "ブックオフイオンモール大牟田店",
-    "address": "大牟田市岬町3-4 イオンモール大牟田2F",
-    "prefecture": "福岡県",
-    "lat": 33.03084043,
-    "lng": 130.4275394,
     "is_wpn_premium": false,
     "is_teaching_meister": false,
     "status": "active"
