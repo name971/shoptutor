@@ -62,9 +62,9 @@ function Body({ href, className, children }: { href?: string; className: string;
 }
 
 // イベント一覧の1行（タイムライン）。左に開始時刻と時間軸の線、右のカードは
-// 1段目「何を（フォーマット＋イベント名）」、2段目「どこで（店名＋距離）」。ホームとお気に入りで共通
+// 1段目「どこで（店名＋距離）」、2段目以降「何を（フォーマット＋イベント名）」。ホームとお気に入りで共通
 export default function EventRow({ href, startTime, shopName, meta, items, soon = false }: Props) {
-  const [first, ...others] = items
+  const first = items[0]
   const color = FORMAT_HEX[first.format] ?? FORMAT_HEX.other
 
   return (
@@ -86,32 +86,22 @@ export default function EventRow({ href, startTime, shopName, meta, items, soon 
 
       {/* 内容 */}
       <div className="flex-1 min-w-0 py-1">
-        {others.length === 0 ? (
-          <div className="surface overflow-hidden flex items-center pr-1">
-            <Body href={href} className="flex-1 min-w-0 px-3 py-2 flex flex-col gap-0.5">
-              <ItemTitle item={first} />
-              {shopName !== undefined && <ShopLine shopName={shopName} meta={meta} />}
+        {/* 店名はイベントが1件でも複数でも、カードの一番上に出す（どの行も位置をそろえる） */}
+        <div className="surface overflow-hidden">
+          {shopName !== undefined && (
+            <Body href={href} className="block px-3 pt-2 pb-0.5">
+              <ShopLine shopName={shopName} meta={meta} />
             </Body>
-            {first.reminder && <ReminderButton source={first.reminder} />}
-          </div>
-        ) : (
-          // 同じ時間に複数ある店：店名を上に1回だけ出し、イベントを同じ重みで並べる
-          <div className="surface overflow-hidden">
-            {shopName !== undefined && (
-              <Body href={href} className="block px-3 pt-2 pb-1">
-                <ShopLine shopName={shopName} meta={meta} />
+          )}
+          {items.map((item, i) => (
+            <div key={i} className={`flex items-center pr-1 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
+              <Body href={href} className={`flex-1 min-w-0 px-3 ${i === 0 && shopName !== undefined ? 'pt-0.5 pb-2' : 'py-2'}`}>
+                <ItemTitle item={item} />
               </Body>
-            )}
-            {items.map((item, i) => (
-              <div key={i} className={`flex items-center pr-1 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
-                <Body href={href} className="flex-1 min-w-0 px-3 py-2">
-                  <ItemTitle item={item} />
-                </Body>
-                {item.reminder && <ReminderButton source={item.reminder} />}
-              </div>
-            ))}
-          </div>
-        )}
+              {item.reminder && <ReminderButton source={item.reminder} />}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
