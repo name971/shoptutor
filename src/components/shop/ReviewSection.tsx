@@ -67,7 +67,7 @@ export default function ReviewSection({ shopId, avgTotal, reviewCount, ratingAve
 
       {reviews.length > 0 && (
         <div className="mt-4 pt-4 border-t">
-          <ReviewList reviews={reviews} />
+          <ReviewList shopId={shopId} initialReviews={reviews} totalCount={reviewCount} />
         </div>
       )}
     </div>

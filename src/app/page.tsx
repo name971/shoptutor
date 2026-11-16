@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import { haversineDistanceKm } from '@/lib/geo'
 import { cached } from '@/lib/clientCache'
 import {
@@ -23,9 +23,13 @@ import EventNotice from '@/components/shared/EventNotice'
 import Chip from '@/components/ui/Chip'
 import ChipRow from '@/components/ui/ChipRow'
 import AuthStatus from '@/components/auth/AuthStatus'
-import EventAreaSheet, { areaLabel, type EventArea } from '@/components/event/EventAreaSheet'
+import dynamic from 'next/dynamic'
+import { areaLabel, type EventArea } from '@/lib/eventArea'
 import { LAST_PREFECTURE_KEY } from '@/lib/area'
 import { LocateFixed, MapPin, X, Store, ChevronDown } from 'lucide-react'
+
+// エリア選択のシートは日本地図のデータ（約36KB）を含むので、開くときに読み込む
+const EventAreaSheet = dynamic(() => import('@/components/event/EventAreaSheet'), { ssr: false })
 
 // 日付の選択：'YYYY-MM-DD'（その日だけ）か 'week'（今日から7日間）
 type DayKey = string
@@ -156,7 +160,7 @@ export default function HomePage() {
         const needsUser = !savedFormat || !initialArea
         const supabase = createClient()
         if (needsUser) {
-          const { data } = await supabase.auth.getUser()
+          const { data } = await getLocalUser(supabase)
           userId = data.user?.id ?? null
         }
         // 自分でフォーマットを選んだことがなければ、メインフォーマットで最初から絞り込む（これは保存しない）
@@ -352,8 +356,9 @@ export default function HomePage() {
 
       let query = supabase
         .from('events')
+        // 件数は最初のページでだけ数える（「もっと見る」のたびに数え直さない）
         .select('id, shop_id, title, format, held_at, start_time, shops!inner(name, prefecture, status)', {
-          count: 'exact',
+          count: offset === 0 ? 'exact' : undefined,
         })
         .gte('held_at', from)
         .lte('held_at', to)
@@ -645,6 +650,7 @@ export default function HomePage() {
         </Link>
       </div>
 
+      {areaSheetOpen && (
       <EventAreaSheet
         open={areaSheetOpen}
         area={area}
@@ -658,6 +664,7 @@ export default function HomePage() {
         }}
         onUseLocation={() => requestLocation(true)}
       />
+      )}
     </div>
   )
 }

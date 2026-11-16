@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import { invalidateCached } from '@/lib/clientCache'
 import { Star } from 'lucide-react'
 
@@ -23,7 +23,7 @@ export default function FavoriteButton({ shopId }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) {
         setLoading(false)

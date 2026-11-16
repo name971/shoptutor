@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FormatOptionButton from '@/components/ui/FormatOptionButton'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import { FORMAT_LABELS, SUB_FORMAT_MAX } from '@/types'
 
 const SELECTABLE_FORMATS = Object.keys(FORMAT_LABELS)
@@ -20,7 +20,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    getLocalUser(supabase).then(({ data }) => {
       if (!data.user) {
         router.replace('/login')
       } else {
@@ -58,7 +58,7 @@ export default function OnboardingPage() {
     const supabase = createClient()
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await getLocalUser(supabase)
 
     if (!user) {
       router.replace('/login')

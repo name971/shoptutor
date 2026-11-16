@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { listAuthUsers } from '@/lib/admin-users'
@@ -44,6 +45,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!ownerId) {
         return NextResponse.json({ error: 'そのメールアドレスのユーザーが見つかりません' }, { status: 400 })
       }
+      // オーナー画面は1人1店舗の前提なので、すでに別の店のオーナーなら割り当てない
+      const { data: owned } = await createAdminClient().from('shops').select('id, name').eq('owner_user_id', ownerId).neq('id', id).limit(1)
+      if (owned && owned.length > 0) {
+        return NextResponse.json({ error: `このユーザーはすでに「${owned[0].name}」のオーナーです` }, { status: 400 })
+      }
       payload.owner_user_id = ownerId
     }
   }
@@ -56,5 +62,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { data, error } = await admin.from('shops').update(payload).eq('id', id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidatePath(`/shops/${id}`)
   return NextResponse.json({ shop: data })
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
 
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
+  revalidatePath(`/shops/${result.shop.id}`)
   return NextResponse.json({ cover_photo_urls: updatedUrls })
 }
 
@@ -72,6 +74,11 @@ export async function DELETE(request: Request) {
   const { url } = await request.json()
   if (typeof url !== 'string') {
     return NextResponse.json({ error: 'url is required' }, { status: 400 })
+  }
+
+  // 自店に設定済みの写真だけ外せる（任意のURLを渡して他のファイルを消せないように）
+  if (!result.shop.cover_photo_urls.includes(url)) {
+    return NextResponse.json({ error: 'not found' }, { status: 400 })
   }
 
   const updatedUrls = result.shop.cover_photo_urls.filter((u) => u !== url)
@@ -90,5 +97,6 @@ export async function DELETE(request: Request) {
   const path = url.split('/shop-photos/')[1]
   if (path) admin.storage.from('shop-photos').remove([path]).then(() => {})
 
+  revalidatePath(`/shops/${result.shop.id}`)
   return NextResponse.json({ cover_photo_urls: updatedUrls })
 }

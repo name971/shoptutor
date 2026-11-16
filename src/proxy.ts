@@ -7,6 +7,9 @@ const ONBOARDED_COOKIE = 'st_onboarded'
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // 未ログイン（Supabaseのセッションcookieがない）なら確認することがないので、何もせず通す
+  if (!request.cookies.getAll().some((c) => c.name.startsWith('sb-'))) return supabaseResponse
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -63,6 +66,15 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    {
+      // ページの表示だけを対象にする。API（各ルートが自分で認証する）・静的ファイル・地図データ・
+      // メタ情報の画像と、<Link> の先読み（一覧のカード1枚ごとに発生する）では動かさない
+      source:
+        '/((?!api|_next/static|_next/image|geo/|favicon.ico|manifest.webmanifest|opengraph-image|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|xml)$).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
   ],
 }

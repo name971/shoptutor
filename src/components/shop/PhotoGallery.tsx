@@ -3,7 +3,8 @@
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
+import { revalidateShop } from '@/lib/revalidateShop'
 import PhotoUpload from './PhotoUpload'
 
 type Photo = {
@@ -34,7 +35,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) return
       setUserId(user.id)
@@ -95,6 +96,8 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
           p.id === photoId ? { ...p, like_count: p.like_count + (isLiked ? 1 : -1) } : p
         )
       )
+    } else {
+      revalidateShop(shopId)
     }
 
     setPending((prev) => {
@@ -117,6 +120,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
       .eq('user_id', userId)
 
     if (!error) {
+      revalidateShop(shopId)
       if (target) {
         const storagePath = target.url.split('/shop-photos/')[1]
         if (storagePath) {

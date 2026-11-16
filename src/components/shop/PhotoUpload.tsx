@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
+import { revalidateShop } from '@/lib/revalidateShop'
 
 const MAX_PHOTOS = 3
 
@@ -28,7 +29,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) {
         setExistingCount(0)
@@ -64,7 +65,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
     const supabase = createClient()
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await getLocalUser(supabase)
 
     if (!user) {
       router.push('/login')
@@ -116,6 +117,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
       uploaded.push({ id: photoRow.id, url: photoRow.url, user_id: user.id, like_count: 0 })
     }
 
+    revalidateShop(shopId)
     onUploaded(uploaded)
     setExistingCount((prev) => (prev ?? 0) + uploaded.length)
     setFiles([])

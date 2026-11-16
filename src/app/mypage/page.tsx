@@ -4,7 +4,8 @@ import { OwnerEntryCard } from '@/components/owner/OwnerEntry'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
+import { revalidateShop } from '@/lib/revalidateShop'
 import { FORMAT_LABELS, SUB_FORMAT_MAX, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import FormatOptionButton from '@/components/ui/FormatOptionButton'
@@ -75,7 +76,7 @@ export default function MyPage() {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) {
         router.replace('/login')
@@ -84,11 +85,25 @@ export default function MyPage() {
       setUserId(user.id)
       setChecking(false)
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name, avatar_url, main_format, sub_formats, name_changed_at')
-        .eq('id', user.id)
-        .single()
+      // プロフィール・レビュー・写真は互いに依存しないので同時に取得する
+      const [{ data: profile }, { data: reviewsData }, { data: photosData }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('name, avatar_url, main_format, sub_formats, name_changed_at')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('reviews')
+          .select('*, shops(id, name), review_likes(count)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('shop_photos')
+          .select('id, url, shops(id, name), photo_likes(count)')
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false }),
+      ])
 
       if (profile) {
         setOriginalName(profile.name ?? '')
@@ -99,24 +114,11 @@ export default function MyPage() {
         setAvatarUrl(profile.avatar_url ?? null)
       }
 
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('*, shops(id, name), review_likes(count)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
       const withLikes: MyReview[] = (reviewsData ?? []).map((r) => ({
         ...r,
         like_count: r.review_likes?.[0]?.count ?? 0,
       }))
       setReviews(withLikes)
-
-      const { data: photosData } = await supabase
-        .from('shop_photos')
-        .select('id, url, shops(id, name), photo_likes(count)')
-        .eq('user_id', user.id)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
 
       const photosWithLikes: MyPhoto[] = ((photosData ?? []) as unknown as MyPhotoRow[]).map((p) => ({
         id: p.id,
@@ -236,6 +238,7 @@ export default function MyPage() {
       }
     }
 
+    if (target?.shops) revalidateShop(target.shops.id)
     setPhotos((prev) => prev.filter((p) => p.id !== photoId))
   }
 
@@ -254,6 +257,8 @@ export default function MyPage() {
       setActionError('レビューの削除に失敗しました。もう一度お試しください。')
       return
     }
+    const deleted = reviews.find((r) => r.id === reviewId)
+    if (deleted) revalidateShop(deleted.shop_id)
     setReviews((prev) => prev.filter((r) => r.id !== reviewId))
   }
 

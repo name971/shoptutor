@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
+import { REVIEW_PAGE_SIZE, REVIEW_SELECT, toReviewsWithLikes } from '@/lib/reviews'
+import { revalidateShop } from '@/lib/revalidateShop'
 import { FORMAT_LABELS, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import StarRating from '@/components/ui/StarRating'
@@ -10,7 +12,11 @@ import StarRating from '@/components/ui/StarRating'
 const RATING_AXIS_LABELS = ['品揃え', '価格', 'スペース', '接客', 'アクセス']
 
 type Props = {
-  reviews: ReviewWithLikes[]
+  shopId: string
+  // 最初の1ページ分（サーバーで取得済み）
+  initialReviews: ReviewWithLikes[]
+  // 表示できるレビューの総数（店舗の review_count）
+  totalCount: number
 }
 
 const SORT_OPTIONS = [
@@ -20,10 +26,14 @@ const SORT_OPTIONS = [
 
 const BODY_TRUNCATE_LENGTH = 150
 
-export default function ReviewList({ reviews }: Props) {
+export default function ReviewList({ shopId, initialReviews, totalCount }: Props) {
   const router = useRouter()
+  const [reviews, setReviews] = useState(initialReviews)
+  const [loadingMore, setLoadingMore] = useState(false)
+  // 最後のページまで読んだら、総数と合わなくても「もっと見る」を出さない
+  const [reachedEnd, setReachedEnd] = useState(false)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
-    Object.fromEntries(reviews.map((r) => [r.id, r.like_count]))
+    Object.fromEntries(initialReviews.map((r) => [r.id, r.like_count]))
   )
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [userId, setUserId] = useState<string | null>(null)
@@ -37,7 +47,7 @@ export default function ReviewList({ reviews }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) return
       setUserId(user.id)
@@ -46,7 +56,7 @@ export default function ReviewList({ reviews }: Props) {
         .from('review_likes')
         .select('review_id')
         .eq('user_id', user.id)
-        .in('review_id', reviews.map((r) => r.id))
+        .in('review_id', initialReviews.map((r) => r.id))
 
       if (likes) {
         setLikedIds(new Set(likes.map((l) => l.review_id)))
@@ -82,6 +92,40 @@ export default function ReviewList({ reviews }: Props) {
     return result
   }, [reviews, formatFilter, sortBy, likeCounts])
 
+  // 次の10件を読み足す（新しい順の続き）
+  const loadMore = async () => {
+    setLoadingMore(true)
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(REVIEW_SELECT)
+      .eq('shop_id', shopId)
+      .eq('is_hidden', false)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(reviews.length, reviews.length + REVIEW_PAGE_SIZE - 1)
+    if (error) {
+      setLoadingMore(false)
+      return
+    }
+    const known = new Set(reviews.map((r) => r.id))
+    const more = toReviewsWithLikes(data).filter((r) => !known.has(r.id))
+    if ((data ?? []).length < REVIEW_PAGE_SIZE) setReachedEnd(true)
+    setReviews((prev) => [...prev, ...more])
+    setLikeCounts((prev) => ({ ...Object.fromEntries(more.map((r) => [r.id, r.like_count])), ...prev }))
+
+    // 読み足した分の、自分のいいね
+    if (userId && more.length > 0) {
+      const { data: likes } = await supabase
+        .from('review_likes')
+        .select('review_id')
+        .eq('user_id', userId)
+        .in('review_id', more.map((r) => r.id))
+      if (likes) setLikedIds((prev) => new Set([...prev, ...likes.map((l) => l.review_id)]))
+    }
+    setLoadingMore(false)
+  }
+
   const toggleLike = async (reviewId: string) => {
     if (!userId) {
       router.push('/login')
@@ -114,6 +158,9 @@ export default function ReviewList({ reviews }: Props) {
         return next
       })
       setLikeCounts((prev) => ({ ...prev, [reviewId]: (prev[reviewId] ?? 0) + (isLiked ? 1 : -1) }))
+    } else {
+      // キャッシュ済みのページのいいね数も更新しておく
+      revalidateShop(shopId)
     }
 
     setPending((prev) => {
@@ -250,6 +297,22 @@ export default function ReviewList({ reviews }: Props) {
           </div>
         ))}
       </div>
+
+      {!reachedEnd && reviews.length < totalCount && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="w-full h-11 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          >
+            {loadingMore ? '読み込み中…' : `もっと見る（残り${totalCount - reviews.length}件）`}
+          </button>
+          {(sortBy === 'likes' || formatFilter) && (
+            <p className="text-[11px] text-gray-500 text-center">並び替え・絞り込みは、読み込んだ{reviews.length}件が対象です</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { fetchAllRows } from '@/lib/fetchAllRows'
+import { jstDateKey, addDaysToKey } from '@/lib/eventTime'
 
 const DAYS = 30
 
@@ -24,7 +26,8 @@ export async function GET() {
   if (!result) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const admin = createAdminClient()
-  const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  // view_date はJSTの暦日なので、JSTの今日から数える（UTCの日付だと時間帯で1日ずれる）
+  const since = addDaysToKey(jstDateKey(), -(DAYS - 1))
 
   const [{ data: stats, error: statsError }, { data: formats, error: formatsError }] =
     await Promise.all([
@@ -33,11 +36,18 @@ export async function GET() {
         .select('view_hour, view_date, anon_views, member_fav_views, member_nonfav_views')
         .eq('shop_id', result.shop.id)
         .gte('view_date', since),
-      admin
-        .from('shop_view_formats')
-        .select('viewer_id, format, is_main, view_hour, view_date')
-        .eq('shop_id', result.shop.id)
-        .gte('view_date', since),
+      // ログイン中の閲覧者×フォーマット×時間帯ごとの行で、人気店では1000行を超えるため全ページ読む
+      fetchAllRows((a, b) =>
+        admin
+          .from('shop_view_formats')
+          .select('viewer_id, format, is_main, view_hour, view_date')
+          .eq('shop_id', result.shop.id)
+          .gte('view_date', since)
+          .order('id')
+          .range(a, b)
+      )
+        .then((data) => ({ data, error: null as { message: string } | null }))
+        .catch((e: Error) => ({ data: null, error: { message: e.message } })),
     ])
 
   if (statsError || formatsError) {
@@ -56,7 +66,7 @@ export async function GET() {
   const dowTotal = Array.from({ length: 7 }, (_, dow) => ({ dow, count: 0 }))
   for (const row of stats ?? []) {
     const n = row.anon_views + row.member_fav_views + row.member_nonfav_views
-    hourly[row.view_hour].count += n
+    if (row.view_hour >= 0 && row.view_hour < 24) hourly[row.view_hour].count += n
     dowTotal[dowOf(row.view_date)].count += n
   }
 

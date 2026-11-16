@@ -9,15 +9,22 @@ export default function EventNotice() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!window.localStorage.getItem(STORAGE_KEY)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
-      setVisible(true)
+    let dismissed = false
+    try {
+      dismissed = !!window.localStorage.getItem(STORAGE_KEY)
+    } catch {
+      // 保存領域が使えない環境では毎回表示する
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
+    if (!dismissed) setVisible(true)
   }, [])
 
   const dismiss = () => {
-    window.localStorage.setItem(STORAGE_KEY, '1')
+    try {
+      window.localStorage.setItem(STORAGE_KEY, '1')
+    } catch {
+      // 保存できなくても閉じる
+    }
     setVisible(false)
   }
 

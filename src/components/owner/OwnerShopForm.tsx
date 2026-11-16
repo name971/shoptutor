@@ -194,6 +194,7 @@ export default function OwnerShopForm({ shop }: Props) {
           <label className="text-sm font-bold text-slate-800 mb-2 block">駐車場の備考（台数など）</label>
           <input
             value={parkingNote}
+            maxLength={100}
             onChange={(e) => setParkingNote(e.target.value)}
             placeholder="例: 店舗前に5台まで"
             className="w-full h-10 text-sm border border-slate-200 rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-blue-300"

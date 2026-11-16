@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import type { Provider } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { CalendarDays, Star, MessageSquareText } from 'lucide-react'
@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
+    getLocalUser(supabase).then(({ data }) => {
       if (data.user) {
         router.replace('/')
       } else {
