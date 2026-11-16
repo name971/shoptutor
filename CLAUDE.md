@@ -203,7 +203,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
   - 店舗・イベント・閲覧記録（`shop_view_stats`/`shop_view_formats`）は service role だけが書く。未ログイン（anon）は読むだけ
   - DBの制約：レビュー本文は30〜2000字、サブフォーマットは2つまで、写真URLは自分がアップロードしたストレージのファイルだけ。ストレージのアップロード先は`店舗ID/自分のID-時刻-連番.webp`だけ
   - `reviews`/`shop_photos`から`profiles`を埋め込むときは外部キー名を付ける（`profiles!reviews_user_id_fkey`・`profiles!shop_photos_user_id_fkey`。いいねテーブル経由の関係と区別できず300エラーになる）
-  - 重複ポリシーの削除（`20261116020000_drop_duplicate_policies.sql`）は未適用。SQL Editorで実行する
+  - 重複ポリシーの削除（`20261116020000_drop_duplicate_policies.sql`）は適用済み。各テーブル・操作ごとにポリシーは1つ
 - `proxy.ts`の対象：ページ表示だけ。API・静的ファイル・`/geo/`・`<Link>`の先読みでは動かさず、Supabaseのcookieがない未ログインは即通す
 - 画面でログイン中かを知るときは`getLocalUser(supabase)`（`lib/supabase.ts`。端末のセッションを読むだけで通信しない）。`auth.getUser()`は毎回Authサーバーへ問い合わせるので、サーバー側の認証（`requireAdmin`等）でだけ使う
 - 集計用に多くの行を読むAPIは`lib/fetchAllRows.ts`で全ページ読む（PostgRESTは1回1000行まで。閲覧数は店×日×時間帯で1行）

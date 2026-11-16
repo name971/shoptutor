@@ -1,5 +1,4 @@
--- 【未適用】同じ内容のRLSポリシーが2つずつあるので片方を消す（動作は変わらない。問い合わせごとの評価が半分になる）。
--- DROP を含むため Supabase MCP では確認待ちになり適用できていない。ダッシュボードの SQL Editor で実行する
+-- 同じ内容のRLSポリシーが2つずつあるので片方を消す（動作は変わらない。問い合わせごとの評価が半分になる）。2026-11-16 に Supabase MCP で適用済み
 drop policy if exists "Anyone can read photo likes" on public.photo_likes;
 drop policy if exists "Users can unlike photos" on public.photo_likes;
 drop policy if exists "Users can like photos" on public.photo_likes;
