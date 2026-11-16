@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 
 const MAX_PHOTOS = 3
 
@@ -28,7 +28,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) {
         setExistingCount(0)
@@ -64,7 +64,7 @@ export default function PhotoUpload({ shopId, onUploaded }: Props) {
     const supabase = createClient()
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await getLocalUser(supabase)
 
     if (!user) {
       router.push('/login')

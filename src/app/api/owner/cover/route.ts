@@ -74,6 +74,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'url is required' }, { status: 400 })
   }
 
+  // 自店に設定済みの写真だけ外せる（任意のURLを渡して他のファイルを消せないように）
+  if (!result.shop.cover_photo_urls.includes(url)) {
+    return NextResponse.json({ error: 'not found' }, { status: 400 })
+  }
+
   const updatedUrls = result.shop.cover_photo_urls.filter((u) => u !== url)
 
   const admin = createAdminClient()

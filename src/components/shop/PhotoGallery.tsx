@@ -3,7 +3,7 @@
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import PhotoUpload from './PhotoUpload'
 
 type Photo = {
@@ -34,7 +34,7 @@ export default function PhotoGallery({ shopId, initialPhotos }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) return
       setUserId(user.id)

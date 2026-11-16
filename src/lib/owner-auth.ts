@@ -38,6 +38,8 @@ export async function requireShopOwner(): Promise<{ user: User; shop: OwnedShop 
     )
     .eq('owner_user_id', user.id)
     .eq('is_premium', true)
+    .order('id')
+    .limit(1)
     .maybeSingle()
 
   if (!shop) return null

@@ -196,3 +196,13 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - オーナー画面（`/owner`）：入口はマイページのカードと、店舗詳細の「この店を管理する」（どちらも`components/owner/OwnerEntry.tsx`。未ログインなら問い合わせない・店舗詳細はプレミアム店舗のときだけ確認）。タブは概要・店舗情報・訪問者分析
   - 概要（`OwnerOverview`・`/api/owner/summary`）：閲覧数（30日・前の30日との比較）・お気に入り数・レビュー・今週のイベント数、日ごとの閲覧数の折れ線（`ViewsTrendChart`）、時間帯ごとの閲覧数（`HourlyViewsChart`・JSTの時）、項目ごとの評価、最近のレビュー本文（非表示中は表示）、今週のイベント（利用者に見えているもの）と最後の取り込み日時
   - 地域比較（`OwnerCompare`・`/api/owner/compare?scope=auto|prefecture|near&km=3|5|10|20`）：初期は自動＝近い順に10店（1km以内は全部）・30kmまで、30km以内に他店が4店以下なら同じ都道府県、それも4店以下なら地方（本番の配置で約74%が近い店、残りが県・地方）。比べた範囲は画面に表示。手動で都道府県内・周辺◯kmにも切り替え可。公開中の店舗と、週のイベント数・★平均・レビュー数・お気に入り数・閲覧数（30日）を「自店／地域平均／順位」で比較。フォーマットの割合（自店と地域）と「地域で多いのに自店で少ないフォーマット」の一言。店舗一覧は公開情報だけ（他店の閲覧数は非公開のため平均と順位にだけ使い、店ごとには返さない）
+- 権限の考え方（2026-11の全体レビューで整理。`supabase/migrations/20261116000000_security_hardening.sql`）：
+  - 画面から直接書くテーブルは、RLS（本人の行だけ）に加えて**列単位のGRANT**で書ける列を絞っている。レビューは評価5項目・本文・is_edited、プロフィールは名前・フォーマット等、写真はINSERTのみ（UPDATE不可）。**画面から書く列を増やすときはGRANTも追加する**（忘れると permission denied）
+  - 店舗・イベント・閲覧記録（`shop_view_stats`/`shop_view_formats`）は service role だけが書く。未ログイン（anon）は読むだけ
+  - DBの制約：レビュー本文は30〜2000字、サブフォーマットは2つまで、写真URLは自分がアップロードしたストレージのファイルだけ。ストレージのアップロード先は`店舗ID/自分のID-時刻-連番.webp`だけ
+  - `reviews`/`shop_photos`から`profiles`を埋め込むときは外部キー名を付ける（`profiles!reviews_user_id_fkey`・`profiles!shop_photos_user_id_fkey`。いいねテーブル経由の関係と区別できず300エラーになる）
+  - 重複ポリシーの削除（`20261116020000_drop_duplicate_policies.sql`）は未適用。SQL Editorで実行する
+- `proxy.ts`の対象：ページ表示だけ。API・静的ファイル・`/geo/`・`<Link>`の先読みでは動かさず、Supabaseのcookieがない未ログインは即通す
+- 画面でログイン中かを知るときは`getLocalUser(supabase)`（`lib/supabase.ts`。端末のセッションを読むだけで通信しない）。`auth.getUser()`は毎回Authサーバーへ問い合わせるので、サーバー側の認証（`requireAdmin`等）でだけ使う
+- 集計用に多くの行を読むAPIは`lib/fetchAllRows.ts`で全ページ読む（PostgRESTは1回1000行まで。閲覧数は店×日×時間帯で1行）
+- 取り込み（`scripts/import.py`）の安全装置：今回の店舗数・イベント数が既存の半分未満なら何も書き換えずに異常終了する。イベントは新しい分を入れてから古い分を消す。週イベント数は今日〜6日後の7日間

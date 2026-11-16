@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { fetchAllRows } from '@/lib/fetchAllRows'
 import { haversineDistanceKm } from '@/lib/geo'
 import { cityOf, REGIONS } from '@/lib/area'
 import { jstDateKey, addDaysToKey } from '@/lib/eventTime'
@@ -87,13 +88,24 @@ export async function GET(request: Request) {
 
   // お気に入り数（件数だけ）と、直近30日の閲覧数
   const since = addDaysToKey(jstDateKey(), -(VIEW_DAYS - 1))
-  const [favRes, viewRes] = await Promise.all([
+  // 閲覧数は「店×日×時間帯」ごとの行なので、店が多いと1000行を超える。全ページ読まないと平均と順位が狂う
+  const [favRes, viewRows] = await Promise.all([
     admin.from('shop_favorite_counts').select('shop_id, favorite_count').in('shop_id', ids),
-    admin.from('shop_view_stats').select('shop_id, anon_views, member_fav_views, member_nonfav_views').in('shop_id', ids).gte('view_date', since),
+    fetchAllRows((a, b) =>
+      admin
+        .from('shop_view_stats')
+        .select('shop_id, anon_views, member_fav_views, member_nonfav_views')
+        .in('shop_id', ids)
+        .gte('view_date', since)
+        .order('shop_id')
+        .order('view_date')
+        .order('view_hour')
+        .range(a, b)
+    ).catch(() => []),
   ])
   const favorites = new Map<string, number>((favRes.data ?? []).map((r) => [r.shop_id as string, r.favorite_count as number]))
   const views = new Map<string, number>()
-  for (const r of viewRes.data ?? []) {
+  for (const r of viewRows) {
     views.set(r.shop_id, (views.get(r.shop_id) ?? 0) + r.anon_views + r.member_fav_views + r.member_nonfav_views)
   }
 

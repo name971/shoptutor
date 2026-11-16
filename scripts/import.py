@@ -9,6 +9,7 @@ shops.json と events_weekly.json を Supabase にインポートするスクリ
 """
 
 import json
+import sys
 import os
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -42,6 +43,18 @@ EVENTS_JSON   = "events_weekly.json"
 # -------------------------------------------------------
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# 今回の件数が既存のこの割合を下回ったら、取得失敗とみなして取り込みを中止する
+MIN_KEEP_RATIO = 0.5
+
+def fetch_all(table, columns, page_size=1000):
+    """1回の取得上限（既定1000件）を超えても全件読む"""
+    rows = []
+    while True:
+        res = supabase.table(table).select(columns).range(len(rows), len(rows) + page_size - 1).execute()
+        rows.extend(res.data)
+        if len(res.data) < page_size:
+            return rows
+
 def load_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -49,7 +62,8 @@ def load_json(path):
 # events_weekly.json はスクレイピングラグを吸収するため8日分取得しているが（scrape.py参照）、
 # 「週イベント数」の定義自体は7日間のまま。集計だけ7日分に絞り、events テーブルへのインポートは
 # 8日分すべて行う（イベント一覧・お気に入りタブ等は引き続き8日分見られる）。
-WEEK_DEADLINE = date.today() + timedelta(days=7)
+# 今日を含めて7日間（今日〜6日後）。画面の「7日間」と同じ範囲
+WEEK_DEADLINE = date.today() + timedelta(days=6)
 
 def calc_event_stats(shop_id, events):
     """店舗のイベント集計を計算（週イベント数・フォーマット別は直近7日間のみ）"""
@@ -80,9 +94,18 @@ def main():
     # STEP 1: 店舗データをupsert
     # -------------------------------------------------------
     print("\n=== 既存店舗のfirst_listed_atを取得中 ===")
-    existing = supabase.table("shops").select("official_id, first_listed_at").execute()
-    existing_first_listed = {s["official_id"]: s["first_listed_at"] for s in existing.data}
+    existing_rows = fetch_all("shops", "official_id, first_listed_at, status")
+    existing_first_listed = {s["official_id"]: s["first_listed_at"] for s in existing_rows}
     print(f"既存店舗: {len(existing_first_listed)}件")
+
+    # 安全装置：取得元の不調やページ構成の変更で件数が極端に減ったときは、何も書き換えずに止める
+    # （そのまま進めると、ほぼ全店舗が inactive になりイベントも消えてしまう）
+    active_count = sum(1 for s in existing_rows if s["status"] == "active")
+    existing_event_count = supabase.table("events").select("id", count="exact").limit(1).execute().count or 0
+    if active_count > 0 and len(shops) < active_count * MIN_KEEP_RATIO:
+        sys.exit(f"中止: 店舗数が少なすぎます（今回 {len(shops)}件 / 公開中 {active_count}件）。スクレイピング結果を確認してください")
+    if existing_event_count > 0 and len(events) < existing_event_count * MIN_KEEP_RATIO:
+        sys.exit(f"中止: イベント数が少なすぎます（今回 {len(events)}件 / 現在 {existing_event_count}件）。スクレイピング結果を確認してください")
 
     print("\n=== 店舗データをインポート中 ===")
     now = datetime.utcnow().isoformat()
@@ -134,16 +157,15 @@ def main():
     # STEP 2: 店舗IDの対応表を作成（official_id → uuid）
     # -------------------------------------------------------
     print("\n=== 店舗IDマッピング取得中 ===")
-    all_shops_db = supabase.table("shops").select("id, official_id").execute()
-    id_map = {s["official_id"]: s["id"] for s in all_shops_db.data}
+    all_shops_db = fetch_all("shops", "id, official_id")
+    id_map = {s["official_id"]: s["id"] for s in all_shops_db}
     print(f"マッピング取得: {len(id_map)}件")
 
     # -------------------------------------------------------
     # STEP 3: 既存イベントを削除して再インポート
     # -------------------------------------------------------
+    # 新しいイベントを先に入れてから古いものを消す（先に消すと、途中で失敗したときにイベントが空になる）
     print("\n=== イベントデータをインポート中 ===")
-    supabase.table("events").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
-    print("既存イベントを削除しました")
 
     event_rows = []
     for e in events:
@@ -167,6 +189,10 @@ def main():
         print(f"  イベント {i+1}〜{min(i+batch_size, len(event_rows))}件 完了")
 
     print(f"イベントインポート完了: {len(event_rows)}件")
+
+    # 今回入れた分（scraped_at = now）より前のイベントを削除
+    supabase.table("events").delete().or_(f"scraped_at.lt.{now},scraped_at.is.null").execute()
+    print("古いイベントを削除しました")
 
     # -------------------------------------------------------
     # 完了

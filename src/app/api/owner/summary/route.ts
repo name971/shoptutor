@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { fetchAllRows } from '@/lib/fetchAllRows'
 import { jstDateKey, addDaysToKey } from '@/lib/eventTime'
 
 const DAYS = 30
@@ -18,11 +19,19 @@ export async function GET() {
   const currentFrom = addDaysToKey(today, -(DAYS - 1))
 
   const [stats, favorites, reviews, events, lastScrape] = await Promise.all([
-    admin
-      .from('shop_view_stats')
-      .select('view_date, view_hour, anon_views, member_fav_views, member_nonfav_views')
-      .eq('shop_id', shopId)
-      .gte('view_date', from),
+    // 60日×24時間で1000行を超えうるので、全ページ読む
+    fetchAllRows((a, b) =>
+      admin
+        .from('shop_view_stats')
+        .select('view_date, view_hour, anon_views, member_fav_views, member_nonfav_views')
+        .eq('shop_id', shopId)
+        .gte('view_date', from)
+        .order('view_date')
+        .order('view_hour')
+        .range(a, b)
+    )
+      .then((data) => ({ data, error: null as { message: string } | null }))
+      .catch((e: Error) => ({ data: [] as { view_date: string; view_hour: number; anon_views: number; member_fav_views: number; member_nonfav_views: number }[], error: { message: e.message } })),
     admin.from('shop_favorites').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId),
     admin
       .from('reviews')

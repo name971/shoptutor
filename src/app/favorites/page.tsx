@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import { Shop, Event, FORMAT_FILTER_OPTIONS_WITH_OTHER as FORMATS, OTHER_FORMAT_KEYS } from '@/types'
 import ShopCard from '@/components/shop/ShopCard'
 import FormatColorLegend from '@/components/shop/FormatColorLegend'
@@ -43,10 +43,14 @@ export default function FavoritesPage() {
   const [day, setDay] = useState<string>('week')
 
   useEffect(() => {
-    const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
-      setSelectedFormats(new Set(JSON.parse(saved)))
+    try {
+      const saved = localStorage.getItem(FORMAT_FILTER_STORAGE_KEY)
+      if (saved) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- ブラウザ保存領域や端末の状態は描画後にしか読めないため（初回描画で読むとSSRと不一致になる）
+        setSelectedFormats(new Set(JSON.parse(saved)))
+      }
+    } catch {
+      // 保存領域が使えない・値が壊れているときは絞り込みなしで始める
     }
 
     try {
@@ -78,7 +82,11 @@ export default function FavoritesPage() {
       const next = new Set(prev)
       if (next.has(format)) next.delete(format)
       else next.add(format)
-      localStorage.setItem(FORMAT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(next)))
+      try {
+        localStorage.setItem(FORMAT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(next)))
+      } catch {
+        // 保存できなくても絞り込み自体は続ける
+      }
       return next
     })
     setVisibleEventCount(PAGE_SIZE)
@@ -105,7 +113,7 @@ export default function FavoritesPage() {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) {
         router.replace('/login')
@@ -125,24 +133,23 @@ export default function FavoritesPage() {
         return
       }
 
-      const { data: shopsData } = await supabase
-        .from('shops')
-        .select('*')
-        .in('id', shopIds)
-      setShops(shopsData ?? [])
-
       const today = jstDateKey()
       // 日付の帯（今日から7日間）と同じ範囲
       const nextWeek = addDaysToKey(today, 6)
 
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('*, shops(name)')
-        .in('shop_id', shopIds)
-        .gte('held_at', today)
-        .lte('held_at', nextWeek)
-        .order('held_at', { ascending: true })
-        .order('start_time', { ascending: true, nullsFirst: false })
+      // 店舗とイベントは互いに依存しないので同時に取得する
+      const [{ data: shopsData }, { data: eventsData }] = await Promise.all([
+        supabase.from('shops').select('*').in('id', shopIds),
+        supabase
+          .from('events')
+          .select('*, shops(name)')
+          .in('shop_id', shopIds)
+          .gte('held_at', today)
+          .lte('held_at', nextWeek)
+          .order('held_at', { ascending: true })
+          .order('start_time', { ascending: true, nullsFirst: false }),
+      ])
+      setShops(shopsData ?? [])
       const upcoming = ((eventsData as FavoriteEvent[]) ?? []).filter(
         (e) => !isEventPast(e.held_at, e.start_time)
       )

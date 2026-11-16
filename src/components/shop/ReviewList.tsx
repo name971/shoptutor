@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import { FORMAT_LABELS, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import StarRating from '@/components/ui/StarRating'
@@ -37,7 +37,7 @@ export default function ReviewList({ reviews }: Props) {
       const supabase = createClient()
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await getLocalUser(supabase)
 
       if (!user) return
       setUserId(user.id)

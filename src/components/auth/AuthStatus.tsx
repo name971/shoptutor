@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { createClient, getLocalUser } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 export default function AuthStatus() {
@@ -12,7 +12,7 @@ export default function AuthStatus() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getUser().then(({ data }) => {
+    getLocalUser(supabase).then(({ data }) => {
       setUser(data.user)
       setLoading(false)
     })
