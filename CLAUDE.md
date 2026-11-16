@@ -169,6 +169,8 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - 確認ダイアログ：`window.confirm`は使わず`useConfirm()`（`components/ui/ConfirmDialog.tsx`）。アカウント削除は「削除」と入力して実行
 - 読み込み中：「読み込み中...」の文字ではなく`components/ui/Skeleton.tsx`の仮表示。店舗詳細は`loading.tsx`
 - 店舗詳細のメタ情報：`generateMetadata`で店名入りのタイトル・説明文・OGP（カバー写真があれば画像に使う）
+- 店舗詳細のキャッシュ（ISR）：`revalidate = 3600`＋`generateStaticParams`は空配列。ページはcookieを読まない（読むと毎回生成に戻る）。閲覧数の記録は`ViewTracker`（端末側でRPC）。書き込み後は即時更新：画面からは`revalidateShop(shopId)`（`/api/shops/[id]/revalidate`、ログイン必須）、管理・オーナーのAPIはサーバーで`revalidatePath`。**店舗詳細に出る情報を書き換える処理を足したら、どちらかを呼ぶ**
+- 店舗詳細のレビュー：最初は新しい順に10件（`lib/reviews.ts`の`REVIEW_PAGE_SIZE`・`REVIEW_SELECT`）、「もっと見る」で10件ずつ端末から追加取得。並べ替え・絞り込みは読み込み済みの分だけが対象
 - lint：エラー・警告0を維持。ストレージ復元のための effect 内 setState と、圧縮済み投稿写真の`<img>`は理由付きの eslint-disable で許容
 - 情報量：カードは3段まで（店舗カード＝店名＋評価／フォーマット内訳の帯／場所・週回数・主力・バッジ、イベント行＝店名＋距離／フォーマット＋イベント名（店名は1件でも複数でもカードの一番上））。説明文は1行に収める
 - グラフ（`components/charts/`）：店舗詳細のイベント欄に「遊ばれているフォーマット（100%積み上げ横棒）」と「日別の開催数（今後7日・単色の縦棒）」。どちらも押すと一覧を絞り込む。フォーマット色はCVD検証で一部の組（コマンダー/スタンダード、モダン/パイオニア）が見分けにくいため、色だけに頼らず名前入りチップを凡例として棒の直下に置く

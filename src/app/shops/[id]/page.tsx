@@ -1,6 +1,4 @@
 import { createClient } from '@/lib/supabase'
-import { createClient as createServerSupabase } from '@/lib/supabase-server'
-import { ReviewWithLikes } from '@/types'
 import ShopBadges from '@/components/ui/ShopBadges'
 import ReviewSection from '@/components/shop/ReviewSection'
 import FavoriteButton from '@/components/shop/FavoriteButton'
@@ -10,6 +8,8 @@ import OfficialEventsSection from '@/components/shop/OfficialEventsSection'
 import BackButton from '@/components/ui/BackButton'
 import DetailHeaderTitle from '@/components/shop/DetailHeaderTitle'
 import ShareButton from '@/components/shop/ShareButton'
+import ViewTracker from '@/components/shop/ViewTracker'
+import { REVIEW_PAGE_SIZE, REVIEW_SELECT, toReviewsWithLikes } from '@/lib/reviews'
 import { OwnerManageLink } from '@/components/owner/OwnerEntry'
 import { jstDateKey } from '@/lib/eventTime'
 import { parseBusinessHours, summarizeBusinessHours } from '@/lib/businessHours'
@@ -23,8 +23,17 @@ type Props = {
   params: Promise<{ id: string }>
 }
 
+// このページはキャッシュして配信する（表示のたびにDBへ問い合わせない）。
+// 1時間ごとに作り直し、レビュー・写真・店舗情報が書き換わったときはその場で作り直す（/api/shops/[id]/revalidate）。
+// ログイン状態に応じた部分（お気に入り・いいね・オーナー用ボタン）は各部品が端末側で取得する
+export const revalidate = 3600
+
+// 事前には作らず、最初に開かれたときに作ってキャッシュする
+export async function generateStaticParams() {
+  return []
+}
+
 // 取得結果の型（投稿者は多対1の結合なのでオブジェクト、いいね数は集計結果の配列で返る）
-type ReviewRow = Omit<ReviewWithLikes, 'like_count'> & { review_likes: { count: number }[] | null }
 type PhotoRow = { id: string; url: string; user_id: string; photo_likes: { count: number }[] | null }
 
 // 店舗の取得。generateMetadata と本体で同じ店舗を2回問い合わせないよう、1回のリクエスト内で結果を共有する
@@ -81,13 +90,12 @@ export default async function ShopDetailPage({ params }: Props) {
         .order('start_time', { ascending: true, nullsFirst: false }),
       supabase
         .from('reviews')
-        .select(
-          'id, shop_id, user_id, stock_rating, price_rating, playspace_rating, staff_rating, access_rating, body, is_edited, created_at, updated_at, profiles!reviews_user_id_fkey(name, avatar_url, main_format, sub_formats), review_likes(count)'
-        )
+        .select(REVIEW_SELECT)
         .eq('shop_id', id)
         .eq('is_hidden', false)
         .order('created_at', { ascending: false })
-        .limit(10),
+        .order('id', { ascending: false })
+        .limit(REVIEW_PAGE_SIZE),
       supabase
         .from('shop_photos')
         .select('id, url, user_id, photo_likes(count)')
@@ -97,18 +105,7 @@ export default async function ShopDetailPage({ params }: Props) {
 
   if (!shop) notFound()
 
-  supabase.rpc('increment_shop_view', { shop_id_input: id }).then(() => {})
-
-  // 訪問者分析用の記録（ログイン済みならフォーマットも記録されるため、cookie付きクライアントで呼ぶ）
-  createServerSupabase()
-    .then((serverClient) => serverClient.rpc('record_shop_view', { shop_id_input: id }))
-    .then(() => {})
-    .catch(() => {})
-
-  const reviews: ReviewWithLikes[] = ((reviewsData ?? []) as unknown as ReviewRow[]).map((r) => ({
-    ...r,
-    like_count: r.review_likes?.[0]?.count ?? 0,
-  }))
+  const reviews = toReviewsWithLikes(reviewsData)
 
   const photos = ((photosData ?? []) as unknown as PhotoRow[]).map((p) => ({
     id: p.id,
@@ -152,6 +149,7 @@ export default async function ShopDetailPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background pb-28">
+      <ViewTracker shopId={shop.id} />
       {/* ヘッダー＋セクションへの移動 */}
       <div className="app-header sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-12 flex items-center gap-2">

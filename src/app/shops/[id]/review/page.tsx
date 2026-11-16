@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient, getLocalUser } from '@/lib/supabase'
+import { revalidateShop } from '@/lib/revalidateShop'
 import StarRatingInput from '@/components/ui/StarRatingInput'
 import BackButton from '@/components/ui/BackButton'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -124,6 +125,7 @@ export default function ReviewFormPage() {
       return
     }
 
+    await revalidateShop(shopId)
     router.push(`/shops/${shopId}`)
     router.refresh()
   }
@@ -146,6 +148,7 @@ export default function ReviewFormPage() {
       return
     }
 
+    await revalidateShop(shopId)
     router.push(`/shops/${shopId}`)
     router.refresh()
   }

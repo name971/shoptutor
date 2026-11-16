@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, getLocalUser } from '@/lib/supabase'
+import { revalidateShop } from '@/lib/revalidateShop'
 import { FORMAT_LABELS, SUB_FORMAT_MAX, ReviewWithLikes } from '@/types'
 import FormatBadge from '@/components/ui/FormatBadge'
 import FormatOptionButton from '@/components/ui/FormatOptionButton'
@@ -237,6 +238,7 @@ export default function MyPage() {
       }
     }
 
+    if (target?.shops) revalidateShop(target.shops.id)
     setPhotos((prev) => prev.filter((p) => p.id !== photoId))
   }
 
@@ -255,6 +257,8 @@ export default function MyPage() {
       setActionError('レビューの削除に失敗しました。もう一度お試しください。')
       return
     }
+    const deleted = reviews.find((r) => r.id === reviewId)
+    if (deleted) revalidateShop(deleted.shop_id)
     setReviews((prev) => prev.filter((r) => r.id !== reviewId))
   }
 

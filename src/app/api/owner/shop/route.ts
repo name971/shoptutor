@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireShopOwner } from '@/lib/owner-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { DAY_ORDER } from '@/lib/businessHours'
@@ -68,5 +69,6 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidatePath(`/shops/${result.shop.id}`)
   return NextResponse.json({ shop: data })
 }

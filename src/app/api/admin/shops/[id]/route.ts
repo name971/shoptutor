@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { listAuthUsers } from '@/lib/admin-users'
@@ -61,5 +62,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { data, error } = await admin.from('shops').update(payload).eq('id', id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidatePath(`/shops/${id}`)
   return NextResponse.json({ shop: data })
 }
