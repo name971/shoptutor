@@ -2277,6 +2277,17 @@
     "status": "active"
   },
   {
+    "official_id": "0021835",
+    "name": "まちキャラ松戸店",
+    "address": "松戸市松戸 1225 良文堂ビル5階",
+    "prefecture": "千葉県",
+    "lat": 35.784066,
+    "lng": 139.9013693,
+    "is_wpn_premium": false,
+    "is_teaching_meister": false,
+    "status": "active"
+  },
+  {
     "official_id": "0005726",
     "name": "ホビーステーション松戸店",
     "address": "松戸市松戸1307-1キテミテマツド3F",
