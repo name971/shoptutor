@@ -10,7 +10,7 @@
 - DB・認証：Supabase (PostgreSQL)
 - 地図：MapLibre GL + OpenFreeMap（ベクタータイル・無料・登録不要・利用回数の上限なし）
 - ホスティング：Vercel（予定）
-- スクレイピング：Python (BeautifulSoup) + GitHub Actions（1日1回 12:00 JST、スクレイピングラグ吸収のため8日分取得。ただし週イベント数・フォーマット別集計は直近7日間のみで計算）
+- スクレイピング：Python (BeautifulSoup) + GitHub Actions（1日1回 15:00 JST、スクレイピングラグ吸収のため8日分取得。ただし週イベント数・フォーマット別集計は直近7日間のみで計算）
 
 ## 環境変数（.env.local）
 NEXT_PUBLIC_SUPABASE_URL=https://jwsyqvuykdkoihurpxjb.supabase.co
@@ -141,7 +141,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - [x] 利用規約・プライバシーポリシーページ
 - [x] OGP設定（サイト名：ShopTutor）
 - [x] Vercelデプロイ（本番: https://shoptutor.vercel.app）
-- [x] GitHub Actions（スクレイピング自動化・1日1回12:00 JST、8日分取得）
+- [x] GitHub Actions（スクレイピング自動化・1日1回15:00 JST、8日分取得）
 
 ## 設計上の重要な決定事項
 - スクレイピング：WotCの利用規約グレーゾーン。問題があればイベント自動取得を停止し手動に切り替え

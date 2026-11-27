@@ -19,7 +19,7 @@ type Overview = {
   recentPhotos: AdminPhoto[]
 }
 
-// 自動取り込みは1日1回（12:00 JST）。これより時間が空いたら止まっている可能性がある
+// 自動取り込みは1日1回（15:00 JST）。これより時間が空いたら止まっている可能性がある
 const SCRAPE_STALE_HOURS = 30
 
 export default function AdminOverview({ onNavigate }: { onNavigate: AdminNavigate }) {
@@ -53,7 +53,7 @@ export default function AdminOverview({ onNavigate }: { onNavigate: AdminNavigat
   const scrapeProblems = [
     hoursSinceScrape === null ? 'イベントがまだ取り込まれていません' : null,
     hoursSinceScrape !== null && hoursSinceScrape > SCRAPE_STALE_HOURS
-      ? `最後の取り込みから${Math.floor(hoursSinceScrape)}時間たっています（毎日12:00に動く予定）`
+      ? `最後の取り込みから${Math.floor(hoursSinceScrape)}時間たっています（毎日15:00に動く予定）`
       : null,
     data.events.today === 0 ? '今日のイベントが0件です' : null,
   ].filter((x): x is string => x !== null)
