@@ -10,7 +10,7 @@
 - DB・認証：Supabase (PostgreSQL)
 - 地図：MapLibre GL + OpenFreeMap（ベクタータイル・無料・登録不要・利用回数の上限なし）
 - ホスティング：Vercel（予定）
-- スクレイピング：Python (BeautifulSoup) + GitHub Actions（1日1回 12:00 JST、スクレイピングラグ吸収のため8日分取得。ただし週イベント数・フォーマット別集計は直近7日間のみで計算）
+- スクレイピング：Python (BeautifulSoup) + GitHub Actions（1日1回 15:00 JST、スクレイピングラグ吸収のため8日分取得。ただし週イベント数・フォーマット別集計は直近7日間のみで計算）
 
 ## 環境変数（.env.local）
 NEXT_PUBLIC_SUPABASE_URL=https://jwsyqvuykdkoihurpxjb.supabase.co
@@ -141,7 +141,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - [x] 利用規約・プライバシーポリシーページ
 - [x] OGP設定（サイト名：ShopTutor）
 - [x] Vercelデプロイ（本番: https://shoptutor.vercel.app）
-- [x] GitHub Actions（スクレイピング自動化・1日1回12:00 JST、8日分取得）
+- [x] GitHub Actions（スクレイピング自動化・1日1回15:00 JST、8日分取得）
 
 ## 設計上の重要な決定事項
 - スクレイピング：WotCの利用規約グレーゾーン。問題があればイベント自動取得を停止し手動に切り替え
@@ -149,7 +149,7 @@ migrations/            # DB変更のSQL（Supabase MCPで適用済みのもの�
 - 認証：Google/X外部認証のみ（メール登録なし）
 - レビュー：1店舗1レビュー・5軸評価・星のみ投稿可（テキストは30字以上必須）
 - NEWバッジ：first_listed_atから30日以内
-- inactive店舗：マップに表示しないがDBには残す・直接URLでアクセス可能
+- inactive店舗：マップに表示しないがDBには残す・直接URLでアクセス可能。公開/非公開は毎日の取り込み（公認店舗一覧にあるか）で自動で決まり、管理画面で非公開にしても翌日の取り込みで戻る。強制的に非公開にしたい店舗は想定しないため、上書き防止の印は付けない（2026-11 決定）
 - 管理者：環境変数ADMIN_EMAILSで制御
 - 写真圧縮：browser-image-compressionでWebP・最大1MB・最大幅1920px
 - イベント注意書き：⑤イベントタブと⑥-bお気に入りイベントのみ表示（初回のみ）

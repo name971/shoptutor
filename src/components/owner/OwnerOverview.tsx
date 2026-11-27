@@ -168,7 +168,7 @@ export default function OwnerOverview({ shop }: { shop: OwnedShop }) {
           </span>
         </div>
         <p className="text-xs text-slate-500">
-          イベントはmtg-jp.comの公認店舗ページから毎日12:00ごろに自動で取り込んでいます。載っていない・内容が違う場合は、まず公式の店舗ページの登録内容をご確認ください。
+          イベントはmtg-jp.comの公認店舗ページから毎日15:00ごろに自動で取り込んでいます。載っていない・内容が違う場合は、まず公式の店舗ページの登録内容をご確認ください。
         </p>
         {upcoming.length === 0 ? (
           <p className="text-sm text-slate-500">今日から7日間のイベントは見つかりませんでした</p>
